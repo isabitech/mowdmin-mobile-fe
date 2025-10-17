@@ -13,7 +13,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" /> 
-        <Stack.Screen name="onboarding" /> 
+        <Stack.Screen name="welcome" /> 
         <Stack.Screen name="(auth)" /> 
         <Stack.Screen name="(tabs)" /> 
       </Stack>
