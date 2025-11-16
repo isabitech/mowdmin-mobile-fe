@@ -1,13 +1,13 @@
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  Animated,
-  StyleSheet,
+    Animated,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { useRouter } from "expo-router";
 
 const slides = [
   require("@/assets/images/church/church-bg-1.jpg"),
@@ -21,14 +21,14 @@ export default function WelcomeScreenSlideshow() {
   const [index, setIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState<number | null>(null);
   const fade = useRef(new Animated.Value(0)).current;
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const crossfade = (fromIndex: number, toIndex: number) => {
     setPrevIndex(fromIndex);
     fade.setValue(1);
     Animated.timing(fade, {
       toValue: 0,
-      duration: 600,
+      duration: 800,
       useNativeDriver: true,
     }).start(() => {
       setPrevIndex(null);
@@ -42,12 +42,12 @@ export default function WelcomeScreenSlideshow() {
         crossfade(cur, next);
         return next;
       });
-    }, 3000);
+    }, 4000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [crossfade]);
 
   return (
     <View className="flex-1 bg-black">

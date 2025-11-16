@@ -1,19 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { ChevronLeft, EyeIcon, EyeOff, Lock, Mail, User } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
+  Alert,
+  Animated,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-  Modal,
-  FlatList,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AnimatedButton, AnimatedTextInput, FadeInView, ShakeView, SlideInView } from '../../src/components/animations';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 interface Country {
   name: string;
@@ -34,22 +39,27 @@ const countries: Country[] = [
 
 export default function SignupFlow() {
   const router = useRouter();
+  const { register, verifyEmail, resendVerification, isLoading } = useAuth();
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    username: '',
     fullName: '',
     country: '',
   });
   const [otp, setOtp] = useState(['', '', '', '']);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({
+    email: '',
+    password: '',
+    fullName: '',
+  });
+  const [shake, setShake] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [searchCountry, setSearchCountry] = useState('');
   
   const progressAnims = useRef(
-    Array.from({ length: 7 }, () => new Animated.Value(0))
+    Array.from({ length: 4 }, () => new Animated.Value(0))
   ).current;
   
   const otpRefs = [
@@ -67,11 +77,13 @@ export default function SignupFlow() {
         useNativeDriver: false,
       }).start();
     });
-  }, [step]);
+  }, [step, progressAnims]);
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData({ ...formData, [field]: value });
-    setError('');
+    if (errors[field as keyof typeof errors]) {
+      setErrors({ ...errors, [field]: '' } as any);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -92,40 +104,107 @@ export default function SignupFlow() {
     }
   };
 
-  const validateStep = (): boolean => {
-    if (step === 1 && !formData.email) {
-      setError('Email is required');
-      return false;
+  const validateStep1 = (): boolean => {
+    const newErrors = { email: '', password: '', fullName: '' };
+    let isValid = true;
+
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email';
+      isValid = false;
     }
-    if (step === 2 && !formData.password) {
-      setError('Password is required');
-      return false;
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+      isValid = false;
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+      isValid = false;
     }
-    if (step === 3 && !formData.username) {
-      setError('Username is required');
-      return false;
+
+    if (!formData.fullName) {
+      newErrors.fullName = 'Full name is required';
+      isValid = false;
+    } else if (formData.fullName.length < 2) {
+      newErrors.fullName = 'Full name must be at least 2 characters';
+      isValid = false;
     }
-    if (step === 4 && otp.some(digit => !digit)) {
-      setError('Please enter the complete verification code');
-      return false;
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleSignUp = async () => {
+    if (!validateStep1()) {
+      setShake(true);
+      return;
     }
-    if (step === 5 && !formData.fullName) {
-      setError('Full name is required');
-      return false;
+
+    try {
+      await register({
+        name: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+      });
+      setStep(2);
+      Alert.alert('Success', 'Account created! Please check your email for the verification code.');
+    } catch (error: any) {
+      setShake(true);
+      Alert.alert('Signup Failed', error.message || 'Registration failed. Please try again.');
     }
-    if (step === 6 && !formData.country) {
-      setError('Please select your country');
-      return false;
+  };
+
+  const handleVerifyEmail = async () => {
+    const verificationCode = otp.join('');
+    if (verificationCode.length !== 4) {
+      setShake(true);
+      Alert.alert('Error', 'Please enter the complete verification code');
+      return;
     }
-    return true;
+
+    try {
+      await verifyEmail(formData.email, verificationCode);
+      setStep(3);
+      Alert.alert('Success', 'Email verified successfully!');
+    } catch (error: any) {
+      setShake(true);
+      Alert.alert('Verification Failed', error.message || 'Invalid verification code');
+    }
+  };
+
+  const handleResendCode = async () => {
+    try {
+      await resendVerification(formData.email);
+      Alert.alert('Success', 'Verification code resent to your email!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to resend verification code');
+    }
+  };
+
+  const handleCompleteProfile = async () => {
+    if (!formData.country) {
+      Alert.alert('Error', 'Please select your country');
+      return;
+    }
+
+    try {
+      setStep(4);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to complete profile');
+    }
   };
 
   const handleContinue = () => {
-    if (validateStep()) {
-      if (step < 7) {
-        setStep(step + 1);
-        setError('');
-      }
+    if (step === 1) {
+      handleSignUp();
+    } else if (step === 2) {
+      handleVerifyEmail();
+    } else if (step === 3) {
+      handleCompleteProfile();
+    } else if (step === 4) {
+      router.push('/(tabs)');
     }
   };
 
@@ -150,7 +229,7 @@ export default function SignupFlow() {
   const selectedCountry = countries.find(c => c.code === formData.country);
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className={`${step === 4 ? 'bg-[#040725]' : 'bg-white'} flex-1`}>
       <StatusBar style='dark' />
       {/* Enhanced Progress Bar */}
       <View className="px-6 pt-4 pb-6 mt-10">
@@ -189,243 +268,209 @@ export default function SignupFlow() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Step 1: Email */}
+          {/* Step 1: Email, Username, Password */}
           {step === 1 && (
-            <View className="flex-1">
-              <Text className="text-4xl font-bold text-gray-900 mb-2">Create account</Text>
-              <Text className="text-base text-gray-600 mb-8">
-                Already have an account?{' '}
-                <Text className="text-blue-600 font-semibold">Log in</Text>
-              </Text>
+            <FadeInView>
+              <SlideInView direction="up" delay={100}>
+                <Text className="text-4xl font-bold text-gray-900 mb-2">Create account</Text>
+                <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+                  <Text className="text-base text-gray-600 mb-8">
+                    Already have an account?{' '}
+                    <Text className="text-blue-600 font-semibold">Log in</Text>
+                  </Text>
+                </TouchableOpacity>
+              </SlideInView>
 
-              <View className="space-y-4">
-                <TextInput
-                  className="border border-gray-300 rounded-xl p-4 text-base bg-white"
-                  placeholder="Email address"
-                  value={formData.email}
-                  onChangeText={(value) => handleInputChange('email', value)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-            </View>
+              <SlideInView direction="up" delay={200} style={{ width: '100%' }}>
+                <ShakeView trigger={shake} onComplete={() => setShake(false)}>
+                  <View className="space-y-4">
+                    
+                    <View className="relative">
+                      <AnimatedTextInput
+                        label="Full Name"
+                        value={formData.fullName}
+                        onChangeText={(value) => handleInputChange('fullName', value)}
+                        error={errors.fullName}
+                        autoCapitalize="words"
+                        containerStyle={{ marginBottom: 15 }}
+                        inputStyle={{ paddingLeft: 45 }}
+                        labelStyle={{ left: 45 }}
+                      />
+                      <View className="absolute left-3 top-6 z-10">
+                        <User size={20} color="#6B7280" />
+                      </View>
+                    </View>
+
+                    <View className="relative">
+                      <AnimatedTextInput
+                        label="Email address"
+                        value={formData.email}
+                        onChangeText={(value) => handleInputChange('email', value)}
+                        error={errors.email}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        containerStyle={{ marginBottom: 15 }}
+                        inputStyle={{ paddingLeft: 45 }}
+                        labelStyle={{ left: 45 }}
+                      />
+                      <View className="absolute left-3 top-6 z-10">
+                        <Mail size={20} color="#6B7280" />
+                      </View>
+                    </View>
+
+                    
+
+                    <View className="relative">
+                      <AnimatedTextInput
+                        label="Password"
+                        value={formData.password}
+                        onChangeText={(value) => handleInputChange('password', value)}
+                        error={errors.password}
+                        secureTextEntry={!showPassword}
+                        containerStyle={{ marginBottom: 20 }}
+                        inputStyle={{ paddingLeft: 45, paddingRight: 45 }}
+                        labelStyle={{ left: 45 }}
+                      />
+                      <View className="absolute left-3 top-6 z-10">
+                        <Lock size={20} color="#6B7280" />
+                      </View>
+                      <TouchableOpacity
+                        className="absolute right-3 top-6 z-10"
+                        onPress={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={20} color="#6B7280" /> : <EyeIcon size={20} color="#6B7280" />}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </ShakeView>
+              </SlideInView>
+            </FadeInView>
           )}
 
-          {/* Step 2: Password */}
+          {/* Step 2: Email Verification */}
           {step === 2 && (
-            <View className="flex-1">
-              <Text className="text-4xl font-bold text-gray-900 mb-2">Create account</Text>
-              <Text className="text-base text-gray-600 mb-8">
-                Already have an account?{' '}
-                <Text className="text-blue-600 font-semibold">Log in</Text>
-              </Text>
+            <FadeInView>
+              <SlideInView direction="up" delay={100}>
+                <Text className="text-4xl font-bold text-gray-900 mb-2">Verify your email</Text>
+                <Text className="text-base text-gray-600 mb-8">
+                  We&apos;ve sent you a 4-digit verification code to {formData.email}
+                </Text>
+              </SlideInView>
 
-              <View className="space-y-4">
-                <TextInput
-                  className="border border-gray-300 rounded-xl p-4 text-base bg-gray-50"
-                  value={formData.email}
-                  editable={false}
-                />
+              <SlideInView direction="up" delay={200}>
+                <ShakeView trigger={shake} onComplete={() => setShake(false)}>
+                  <View className="flex-row justify-center gap-3 mb-6">
+                    {otp.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        ref={otpRefs[index]}
+                        className="w-16 h-16 border-2 border-gray-300 rounded-xl text-2xl font-semibold text-center"
+                        value={digit}
+                        onChangeText={(value) => handleOtpChange(index, value)}
+                        onKeyPress={({ nativeEvent: { key } }) => handleOtpKeyPress(index, key)}
+                        keyboardType="number-pad"
+                        maxLength={1}
+                        selectTextOnFocus
+                      />
+                    ))}
+                  </View>
 
-                <View className="relative">
-                  <TextInput
-                    className="border border-gray-300 rounded-xl p-4 pr-12 text-base bg-white"
-                    placeholder="Password"
-                    value={formData.password}
-                    onChangeText={(value) => handleInputChange('password', value)}
-                    secureTextEntry={!showPassword}
-                    placeholderTextColor="#9CA3AF"
-                  />
+                  <Text className="text-center text-sm text-gray-600 mb-8">
+                    Didn&apos;t receive any code?{' '}
+                    <TouchableOpacity onPress={handleResendCode}>
+                      <Text className="text-[#FF0000] font-semibold">Resend code</Text>
+                    </TouchableOpacity>
+                  </Text>
+
+                  {/* Number Pad */}
+                  <View className="flex-row flex-wrap justify-center gap-4 max-w-xs mx-auto">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        className="w-20 h-14 items-center justify-center rounded-xl active:bg-gray-100"
+                        onPress={() => handleNumberPress(num.toString())}
+                      >
+                        <Text className="text-2xl font-medium text-gray-900">{num}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <View className="w-20 h-14" />
+                    <TouchableOpacity
+                      className="w-20 h-14 items-center justify-center rounded-xl active:bg-gray-100"
+                      onPress={() => handleNumberPress('0')}
+                    >
+                      <Text className="text-2xl font-medium text-gray-900">0</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="w-20 h-14 items-center justify-center rounded-xl active:bg-gray-100"
+                      onPress={handleBackspace}
+                      >
+                      <Text className="text-xl text-[#000000]"><ChevronLeft  /></Text>
+                    </TouchableOpacity>
+                  </View>
+                </ShakeView>
+              </SlideInView>
+            </FadeInView>
+          )}
+
+          {/* Step 3: Country Selection */}
+          {step === 3 && (
+            <FadeInView>
+              <SlideInView direction="up" delay={100}>
+                <Text className="text-4xl font-bold text-gray-900 mb-2">Almost done!</Text>
+                <Text className="text-base text-gray-600 mb-8">
+                  Choose your country to complete your registration.
+                </Text>
+              </SlideInView>
+
+              <SlideInView direction="up" delay={200} style={{ width: '100%' }}>
+                <View className="space-y-4">
                   <TouchableOpacity
-                    className="absolute right-4 top-4"
-                    onPress={() => setShowPassword(!showPassword)}
+                    className="flex-row items-center border border-gray-300 rounded-xl p-4 gap-3"
+                    onPress={() => setShowCountryModal(true)}
                   >
-                    <Text className="text-xl">{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                    {selectedCountry ? (
+                      <>
+                        <Text className="text-2xl">{selectedCountry.flag}</Text>
+                        <Text className="text-base text-gray-900">{selectedCountry.name}</Text>
+                      </>
+                    ) : (
+                      <Text className="text-base text-gray-400">Select your country</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
-              </View>
-            </View>
+              </SlideInView>
+            </FadeInView>
           )}
 
-          {/* Step 3: Username */}
-          {step === 3 && (
-            <View className="flex-1">
-              <Text className="text-4xl font-bold text-gray-900 mb-2">Create account</Text>
-              <Text className="text-base text-gray-600 mb-8">
-                Already have an account?{' '}
-                <Text className="text-blue-600 font-semibold">Log in</Text>
-              </Text>
-
-              <View className="space-y-4">
-                <TextInput
-                  className="border border-gray-300 rounded-xl p-4 text-base bg-gray-50"
-                  value={formData.email}
-                  editable={false}
-                />
-
-                <TextInput
-                  className="border border-gray-300 rounded-xl p-4 text-base bg-white"
-                  placeholder="Username"
-                  value={formData.username}
-                  onChangeText={(value) => handleInputChange('username', value)}
-                  autoCapitalize="none"
-                  placeholderTextColor="#9CA3AF"
-                />
-
-                {error && (
-                  <View className="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <Text className="text-red-600 text-sm">{error}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Step 4: OTP Verification */}
+          {/* Step 4: Success */}
           {step === 4 && (
-            <View className="flex-1">
-              <Text className="text-4xl font-bold text-gray-900 mb-2">Verify your email address</Text>
-              <Text className="text-base text-gray-600 mb-8">
-                We've sent you a 4-digit verification code to verify your email.
-              </Text>
-
-              <View className="flex-row justify-center gap-3 mb-6">
-                {otp.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={otpRefs[index]}
-                    className="w-16 h-16 border-2 border-gray-300 rounded-xl text-2xl font-semibold text-center"
-                    value={digit}
-                    onChangeText={(value) => handleOtpChange(index, value)}
-                    onKeyPress={({ nativeEvent: { key } }) => handleOtpKeyPress(index, key)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    selectTextOnFocus
+            <FadeInView >
+              <View className="flex  py-12 h-[70vh]  relative">
+                <View className="w-60 h-60 flex justify-center items-center mx-auto">
+                 <Image
+                    source={require('../../src/../assets/images/welcome-register.png')}
+                    style={{ width: '100%', height: '100%', marginBottom: 16 }}
+                    resizeMode="contain"
                   />
-                ))}
+                </View>
+                <Text className="text-xl font-bold text-center text-[#fff] px-6 absolute bottom-0">
+                  Welcome {formData.fullName}!{'\n'}Your account has been created successfully!
+                </Text>
               </View>
-
-              <Text className="text-center text-sm text-gray-600 mb-8">
-                Didn't receive any code?{' '}
-                <Text className="text-blue-600 font-semibold">Resend code</Text>
-              </Text>
-
-              {/* Number Pad */}
-              <View className="flex-row flex-wrap justify-center gap-4 max-w-xs mx-auto">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    className="w-20 h-14 items-center justify-center rounded-xl active:bg-gray-100"
-                    onPress={() => handleNumberPress(num.toString())}
-                  >
-                    <Text className="text-2xl font-medium text-gray-900">{num}</Text>
-                  </TouchableOpacity>
-                ))}
-                <View className="w-20 h-14" />
-                <TouchableOpacity
-                  className="w-20 h-14 items-center justify-center rounded-xl active:bg-gray-100"
-                  onPress={() => handleNumberPress('0')}
-                >
-                  <Text className="text-2xl font-medium text-gray-900">0</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="w-20 h-14 items-center justify-center rounded-xl active:bg-gray-100"
-                  onPress={handleBackspace}
-                >
-                  <Text className="text-xl text-gray-900">⌫</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Step 5: Full Name */}
-          {step === 5 && (
-            <View className="flex-1">
-              <Text className="text-4xl font-bold text-gray-900 mb-2">Complete your profile</Text>
-              <Text className="text-base text-gray-600 mb-8">
-                Enter your name and choose your country to complete your registration.
-              </Text>
-
-              <View className="space-y-4">
-                <TextInput
-                  className="border border-gray-300 rounded-xl p-4 text-base bg-white"
-                  placeholder="Full name"
-                  value={formData.fullName}
-                  onChangeText={(value) => handleInputChange('fullName', value)}
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Step 6: Country */}
-          {step === 6 && (
-            <View className="flex-1">
-              <Text className="text-4xl font-bold text-gray-900 mb-2">Complete your profile</Text>
-              <Text className="text-base text-gray-600 mb-8">
-                Enter your name and choose your country to complete your registration.
-              </Text>
-
-              <View className="space-y-4">
-                <TextInput
-                  className="border border-gray-300 rounded-xl p-4 text-base bg-gray-50"
-                  value={formData.fullName}
-                  editable={false}
-                />
-
-                <TouchableOpacity
-                  className="flex-row items-center border border-gray-300 rounded-xl p-4 gap-3"
-                  onPress={() => setShowCountryModal(true)}
-                >
-                  {selectedCountry ? (
-                    <>
-                      <Text className="text-2xl">{selectedCountry.flag}</Text>
-                      <Text className="text-base text-gray-900">{selectedCountry.name}</Text>
-                    </>
-                  ) : (
-                    <Text className="text-base text-gray-400">Select your country</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Step 7: Success */}
-          {step === 7 && (
-            <View className="flex-1 items-center justify-center py-12">
-              <View className="w-32 h-32 bg-pink-400 rounded-3xl items-center justify-center mb-8 shadow-lg">
-                <Text className="text-6xl text-white">✓</Text>
-              </View>
-              <Text className="text-3xl font-bold text-center text-gray-900 px-6">
-                Your account has been{'\n'}created successfully!
-              </Text>
-            </View>
+            </FadeInView>
           )}
         </ScrollView>
 
         {/* Continue Button */}
-        {step < 7 && (
-          <View className="p-6 pb-8">
-            <TouchableOpacity
-              className="bg-gray-900 py-4 rounded-full items-center shadow-sm active:opacity-80"
-              onPress={handleContinue}
-            >
-              <Text className="text-white text-base font-semibold">Continue</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {step === 7 && (
-          <View className="p-6 pb-8">
-            <TouchableOpacity
-              className="bg-red-500 py-4 rounded-full items-center shadow-sm active:opacity-80"
-              onPress={() => router.push('/(tabs)')}
-            >
-              <Text className="text-white text-base font-semibold">Go to Home</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View className="p-6 pb-8">
+          <AnimatedButton
+            title={step === 2 ? 'Verify ' : step === 3 ? 'Select Country' : step === 4 ? 'Go to Home' : 'Continue'}
+            onPress={handleContinue}
+            loading={isLoading}
+            variant={step === 4 ? 'secondary' : 'primary'}
+            size="large"
+          />
+        </View>
       </KeyboardAvoidingView>
 
       {/* Country Modal */}
