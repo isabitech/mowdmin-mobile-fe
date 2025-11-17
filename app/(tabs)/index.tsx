@@ -1,42 +1,51 @@
-import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from "react";
+import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   InspirationalBooks,
   LiveVideoSection,
   PrayerArmy,
   QuickActions,
-  TorahSection
-} from '../../src/components/home';
+  TorahSection,
+} from "../../src/components/home";
+import { Bell } from "lucide-react-native";
 
 export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView 
+      <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}
       >
         {/* Header */}
-        <View className="px-6 pt-4 pb-2">
-          <Text className="text-3xl font-bold text-gray-900">Welcome</Text>
-          <Text className="text-gray-600 text-base">to Mowdministries</Text>
+        <View className="h-[350px] bg-red-500 w-full relative">
+          <View className="absolute top-0 w-full px-5 pt-3  z-10 flex-row items-center justify-between">
+            <Text className="text-lg font-semibold text-white">
+              Welcome back!{" "}
+            </Text>
+            <View className="">
+              <View className=" w-12 h-12 rounded-full bg-[#FFFFFF47] flex justify-center items-center">
+                <Bell size={25} color="white" className="m-2" />
+              </View>
+            </View>
+          </View>
+
+         
+            <LiveVideoSection isLive={true} />
         </View>
 
-        {/* Live Video / Video Carousel */}
-        <LiveVideoSection isLive={false} />
-
         {/* Quick Actions */}
-        <QuickActions />
+        {/* <QuickActions /> */}
 
         {/* Prayer Army */}
-        <PrayerArmy />
+        {/* <PrayerArmy /> */}
 
         {/* Torah Section */}
-        <TorahSection />
+        {/* <TorahSection /> */}
 
         {/* Inspirational Books */}
-        <InspirationalBooks />
+        {/* <InspirationalBooks /> */}
       </ScrollView>
     </SafeAreaView>
   );

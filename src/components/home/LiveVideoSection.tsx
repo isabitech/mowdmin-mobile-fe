@@ -1,6 +1,6 @@
-import { Play } from 'lucide-react-native';
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Eye, Play } from "lucide-react-native";
+import React from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 interface Video {
   id: string;
@@ -19,35 +19,51 @@ export const LiveVideoSection: React.FC<LiveVideoSectionProps> = ({
   isLive = false,
   liveStreamTitle = "Sunday Service Live",
   videos = [
-    { id: '1', title: 'Faith in Action', thumbnail: '', duration: '25:30' },
-    { id: '2', title: 'Hope & Healing', thumbnail: '', duration: '18:45' },
-    { id: '3', title: 'Grace Unveiled', thumbnail: '', duration: '32:15' },
-  ]
+    { id: "1", title: "Faith in Action", thumbnail: "", duration: "25:30" },
+    { id: "2", title: "Hope & Healing", thumbnail: "", duration: "18:45" },
+    { id: "3", title: "Grace Unveiled", thumbnail: "", duration: "32:15" },
+  ],
 }) => {
   if (isLive) {
     return (
-      <View className="mb-6 h-[250px]">
-        <Text className="text-xl font-bold text-gray-900 mb-3 px-6">🔴 Live Now</Text>
-        <View className="mx-6 rounded-2xl overflow-hidden bg-red-600 h-48 justify-center items-center relative">
-          <View className="absolute top-4 left-4 bg-red-500 px-3 py-1 rounded-full">
-            <Text className="text-white text-xs font-semibold">LIVE</Text>
+      <View className=" mb-6 absolute h-full top-0 bg-yellow-300 w-full">
+        <View className="absolute inset-0 bg-black bg-opacity-40 justify-center items-center">
+          <TouchableOpacity className="rounded-full bg-white bg-opacity-70 p-4">
+            <Play size={50} color="#000" />
+          </TouchableOpacity>
+        </View>
+
+        <View className="flex-1 justify-end p-4">
+          <View className="flex-row items-center">
+            <View className="bg-red-500 px-2 py-1 rounded-md flex-row items-center mr-4">
+              <View className="w-2 h-2 bg-white rounded-full mr-2" />
+              <Text className="text-white font-semibold rounded-sm px-5 py-1">
+                LIVE
+              </Text>
+            </View>
+            <View className="bg-black bg-opacity-60 px-2 py-1 rounded-md flex-row items-center">
+              <Eye size={16} color="#FFFFFF" className="mr-2" />
+              <Text className="text-white font-semibold">1.2K Watching</Text>
+            </View>
           </View>
-          <Play size={60} color="white" />
-          <Text className="text-white text-lg font-semibold mt-3">{liveStreamTitle}</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View className="mb-6 h-[250px] bg-red-600">
+    <View className="mb-6 h-full bg-red-600">
       <View className="flex-row justify-between items-center px-6 mb-3">
         <Text className="text-xl font-bold text-gray-900">Recent Videos</Text>
         <TouchableOpacity>
           <Text className="text-blue-600 font-semibold">See All</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pl-6">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="pl-6"
+      >
         {videos.map((video) => (
           <TouchableOpacity key={video.id} className="mr-4 w-64">
             <View className="rounded-xl bg-gray-200 h-36 justify-center items-center mb-2 relative">
@@ -56,7 +72,10 @@ export const LiveVideoSection: React.FC<LiveVideoSectionProps> = ({
                 <Text className="text-white text-xs">{video.duration}</Text>
               </View>
             </View>
-            <Text className="text-gray-900 font-semibold text-sm" numberOfLines={2}>
+            <Text
+              className="text-gray-900 font-semibold text-sm"
+              numberOfLines={2}
+            >
               {video.title}
             </Text>
           </TouchableOpacity>
