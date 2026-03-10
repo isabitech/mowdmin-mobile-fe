@@ -1,0 +1,37 @@
+{
+  "common": {
+    "apply": "Apply Changes",
+    "cancel": "Cancel",
+    "save": "Save",
+    "error": "Error"
+  },
+  "language": {
+    "title": "Language",
+    "chooseLanguage": "Choose Your Language",
+    "description": "Select your preferred language to customize your Mowdministries experience",
+    "currentLanguage": "Current Language",
+    "activeLanguage": "{{language}} is your active language",
+    "available": "Available",
+    "comingSoon": "Coming Soon",
+    "dontSee": "Don't see your language?",
+    "requestLanguage": "Request Language",
+    "requestDescription": "Let us know and we'll work on adding it to Mowdministries.",
+    "appRestart": "App will restart to apply language changes"
+  },
+  "profile": {
+    "title": "Profile & Settings",
+    "editProfile": "Edit Profile",
+    "notifications": "Notifications",
+    "language": "Language",
+    "giveHistory": "Give History",
+    "aboutMowdministries": "About Mowdministries",
+    "accountSettings": "Account Settings",
+    "ministry": "Ministry",
+    "appPreferences": "App Preferences",
+    "logout": "Logout",
+    "logoutTitle": "Log Out",
+    "logoutMessage": "Are you sure you want to log out?",
+    "logoutError": "Failed to log out. Please try again.",
+    "memberSince": "Member Since"
+  }
+}

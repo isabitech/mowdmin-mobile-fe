@@ -1,0 +1,38 @@
+// src/locales/fr.json
+{
+  "common": {
+    "apply": "Appliquer les modifications",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "error": "Erreur"
+  },
+  "language": {
+    "title": "Langue",
+    "chooseLanguage": "Choisissez votre langue",
+    "description": "Sélectionnez votre langue préférée pour personnaliser votre expérience Mowdministries",
+    "currentLanguage": "Langue actuelle",
+    "activeLanguage": "{{language}} est votre langue active",
+    "available": "Disponible",
+    "comingSoon": "Bientôt disponible",
+    "dontSee": "Vous ne voyez pas votre langue?",
+    "requestLanguage": "Demander une langue",
+    "requestDescription": "Faites-le nous savoir et nous travaillerons à l'ajouter à Mowdministries.",
+    "appRestart": "L'application redémarrera pour appliquer les changements de langue"
+  },
+  "profile": {
+    "title": "Profil et paramètres",
+    "editProfile": "Modifier le profil",
+    "notifications": "Notifications",
+    "language": "Langue",
+    "giveHistory": "Historique des dons",
+    "aboutMowdministries": "À propos de Mowdministries",
+    "accountSettings": "Paramètres du compte",
+    "ministry": "Ministère",
+    "appPreferences": "Préférences de l'application",
+    "logout": "Se déconnecter",
+    "logoutTitle": "Se déconnecter",
+    "logoutMessage": "Êtes-vous sûr de vouloir vous déconnecter?",
+    "logoutError": "Échec de la déconnexion. Veuillez réessayer.",
+    "memberSince": "Membre depuis octobre 2021"
+  }
+}
