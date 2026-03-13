@@ -4,6 +4,7 @@ import { authAPI, setUnauthorizedHandler, UnauthorizedError } from '../services/
 
 interface User {
   id: string;
+  _id?: string;
   name: string;
   email: string;
 }
@@ -62,8 +63,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsFirstTimeState(firstTimeValue === null);
       
       if (authValue === 'true' && token && userData) {
+        const parsed = JSON.parse(userData);
+        // Normalize: backend returns _id, ensure id is always set
+        const normalizedUser = { ...parsed, id: parsed.id || parsed._id };
         setIsAuthenticatedState(true);
-        setUser(JSON.parse(userData));
+        setUser(normalizedUser);
       }
     } catch (error) {
       console.error('Error checking auth state:', error);
@@ -139,17 +143,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const verifyOTP = async (email: string, otp: string) => {
     try {
       const response = await authAPI.verifyOTP(email, otp);
-      
+
       const { data } = response;
       const { token, user: userData } = data;
+      // Normalize: backend returns _id, ensure id is also set
+      const normalizedUser = { ...userData, id: userData.id || userData._id };
 
       await AsyncStorage.multiSet([
         [STORAGE_KEYS.TOKEN, token],
         [STORAGE_KEYS.IS_AUTHENTICATED, 'true'],
-        [STORAGE_KEYS.USER_DATA, JSON.stringify(userData)],
+        [STORAGE_KEYS.USER_DATA, JSON.stringify(normalizedUser)],
       ]);
 
-      setUser(userData);
+      setUser(normalizedUser);
       setIsAuthenticatedState(true);
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
@@ -179,17 +185,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       const response = await authAPI.login(email, password);
-      
+
       const { data } = response;
       const { token, user: userData } = data;
+      // Normalize: backend returns _id, ensure id is also set
+      const normalizedUser = { ...userData, id: userData.id || userData._id };
 
       await AsyncStorage.multiSet([
         [STORAGE_KEYS.TOKEN, token],
         [STORAGE_KEYS.IS_AUTHENTICATED, 'true'],
-        [STORAGE_KEYS.USER_DATA, JSON.stringify(userData)],
+        [STORAGE_KEYS.USER_DATA, JSON.stringify(normalizedUser)],
       ]);
 
-      setUser(userData);
+      setUser(normalizedUser);
       setIsAuthenticatedState(true);
     } catch (error: any) {
       console.error('Error logging in:', error);

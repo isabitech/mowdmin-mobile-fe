@@ -12,6 +12,8 @@ import {
   Alert,
   Platform,
   Dimensions,
+  StyleSheet,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,39 +21,31 @@ import { LinearGradient } from 'expo-linear-gradient';
 import groupsAPI, { Group } from '../../services/groupsAPI';
 
 const PRIMARY = '#040725';
-const { width } = Dimensions.get('window');
+const ACCENT = '#007AFF';
+const BG = '#F4F6FB';
+const CARD_BG = '#FFFFFF';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Generate a deterministic color from a string (for group avatar backgrounds)
 const getGroupColor = (id: string): [string, string] => {
   const colors: [string, string][] = [
-    ['#3B82F6', '#2563EB'], // blue
-    ['#8B5CF6', '#7C3AED'], // purple
-    ['#F97316', '#EA580C'], // orange
-    ['#10B981', '#059669'], // green
-    ['#EF4444', '#DC2626'], // red
-    ['#EC4899', '#DB2777'], // pink
-    ['#14B8A6', '#0D9488'], // teal
-    ['#F59E0B', '#D97706'], // amber
+    ['#3B82F6', '#2563EB'],
+    ['#8B5CF6', '#7C3AED'],
+    ['#F97316', '#EA580C'],
+    ['#10B981', '#059669'],
+    ['#EF4444', '#DC2626'],
+    ['#EC4899', '#DB2777'],
+    ['#14B8A6', '#0D9488'],
+    ['#F59E0B', '#D97706'],
   ];
   const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return colors[hash % colors.length];
 };
 
-// Get initials from group name
-const getInitials = (name: string): string => {
-  return name
-    .split(/[\s\-,]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join('');
-};
+const getInitials = (name: string): string =>
+  name.split(/[\s\-,]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 
-// Format relative time from date string
 const getRelativeTime = (dateStr: string): string => {
-  const now = Date.now();
-  const date = new Date(dateStr).getTime();
-  const diff = now - date;
+  const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
@@ -70,12 +64,11 @@ const CommunityScreen = ({ navigation }: any) => {
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null);
   const [leavingGroupId, setLeavingGroupId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const filters = ['All', 'Public', 'Private'];
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+  useEffect(() => { fetchGroups(); }, []);
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -104,13 +97,11 @@ const CommunityScreen = ({ navigation }: any) => {
     try {
       setJoiningGroupId(groupId);
       await groupsAPI.joinGroup(groupId);
-
       const joinedGroup = discoverGroups.find((g) => g._id === groupId);
       if (joinedGroup) {
         setMyGroups((prev) => [...prev, joinedGroup]);
         setDiscoverGroups((prev) => prev.filter((g) => g._id !== groupId));
       }
-
       Alert.alert('Joined!', 'You have successfully joined the group.', [{ text: 'OK' }]);
     } catch (err: any) {
       Alert.alert('Error', err.response?.data?.message || 'Failed to join group.', [{ text: 'OK' }]);
@@ -129,7 +120,6 @@ const CommunityScreen = ({ navigation }: any) => {
           try {
             setLeavingGroupId(groupId);
             await groupsAPI.leaveGroup(groupId);
-
             const leftGroup = myGroups.find((g) => g._id === groupId);
             if (leftGroup) {
               setMyGroups((prev) => prev.filter((g) => g._id !== groupId));
@@ -144,8 +134,6 @@ const CommunityScreen = ({ navigation }: any) => {
       },
     ]);
   };
-
-  // ─── Filtering ──────────────────────────────────────────────────────────────
 
   const applyPrivacyFilter = (groups: Group[]) => {
     if (activeFilter === 'Public') return groups.filter((g) => !g.isPrivate);
@@ -165,258 +153,95 @@ const CommunityScreen = ({ navigation }: any) => {
     g.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // ─── Render Helpers ─────────────────────────────────────────────────────────
-
-  const renderHeader = () => (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-      }}
-    >
-      <TouchableOpacity
-        onPress={() => navigation.goBack()}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 14,
-          backgroundColor: 'rgba(4,7,37,0.06)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="chevron-back" size={22} color={PRIMARY} />
-      </TouchableOpacity>
-      <Text style={{ color: PRIMARY, fontSize: 17, fontWeight: '800', letterSpacing: -0.2 }}>
-        Community
-      </Text>
-      <TouchableOpacity
-        onPress={() => navigation.navigate('CreateNewGroup')}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 14,
-          backgroundColor: PRIMARY,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="add" size={20} color="#FFF" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderMyGroupItem = (group: Group) => {
+  // ─── My Group Horizontal Card ─────────────────────────────────────────
+  const renderMyGroupCard = ({ item: group }: { item: Group }) => {
     const colors = getGroupColor(group._id);
     const initials = getInitials(group.name);
     const isLeaving = leavingGroupId === group._id;
 
     return (
       <TouchableOpacity
-        key={group._id}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingVertical: 12,
-          paddingHorizontal: 4,
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(4,7,37,0.06)',
-        }}
-        onPress={() =>
-          navigation.navigate('GroupChat', { groupId: group._id, groupName: group.name })
-        }
+        style={styles.myGroupCard}
+        onPress={() => navigation.navigate('GroupChat', { groupId: group._id, groupName: group.name, groupImage: group.image || group.avatar || '' })}
         onLongPress={() => handleLeaveGroup(group._id, group.name)}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        {/* Avatar */}
-        <View style={{ marginRight: 14 }}>
-          {group.avatar || group.image ? (
-            <Image
-              source={{ uri: group.avatar || group.image }}
-              style={{ width: 48, height: 48, borderRadius: 16 }}
-            />
-          ) : (
-            <LinearGradient
-              colors={colors}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 16,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>{initials}</Text>
-            </LinearGradient>
-          )}
-        </View>
-
-        {/* Info */}
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: PRIMARY, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>
-            {group.name}
-          </Text>
-          <Text
-            style={{ color: 'rgba(4,7,37,0.45)', fontSize: 12, marginTop: 3, fontWeight: '400' }}
-            numberOfLines={1}
-          >
-            {group.lastMessage || group.description}
-          </Text>
-        </View>
-
-        {/* Meta */}
-        <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-          <Text style={{ color: 'rgba(4,7,37,0.35)', fontSize: 11, fontWeight: '500' }}>
-            {group.time || getRelativeTime(group.updatedAt || group.createdAt)}
-          </Text>
-          {group.isPrivate && (
-            <Ionicons
-              name="lock-closed"
-              size={11}
-              color="rgba(4,7,37,0.25)"
-              style={{ marginTop: 4 }}
-            />
-          )}
-        </View>
-
         {isLeaving && (
-          <ActivityIndicator size="small" color={PRIMARY} style={{ marginLeft: 8 }} />
+          <View style={styles.myGroupCardOverlay}>
+            <ActivityIndicator size="small" color="#fff" />
+          </View>
+        )}
+        {group.avatar || group.image ? (
+          <Image source={{ uri: group.avatar || group.image }} style={styles.myGroupAvatar} />
+        ) : (
+          <LinearGradient colors={colors} style={styles.myGroupAvatar}>
+            <Text style={styles.myGroupInitials}>{initials}</Text>
+          </LinearGradient>
+        )}
+        <Text style={styles.myGroupName} numberOfLines={1}>{group.name}</Text>
+        <View style={styles.myGroupMeta}>
+          <Ionicons name="people" size={10} color="rgba(4,7,37,0.35)" />
+          <Text style={styles.myGroupMembers}>{group.memberCount || 0}</Text>
+        </View>
+        {group.isPrivate && (
+          <View style={styles.myGroupLock}>
+            <Ionicons name="lock-closed" size={8} color="#fff" />
+          </View>
         )}
       </TouchableOpacity>
     );
   };
 
-  const renderDiscoverGroupCard = (group: Group) => {
+  // ─── Discover Group Card ──────────────────────────────────────────────
+  const renderDiscoverCard = (group: Group) => {
     const isJoining = joiningGroupId === group._id;
     const colors = getGroupColor(group._id);
     const initials = getInitials(group.name);
 
     return (
-      <View
-        key={group._id}
-        style={{
-          backgroundColor: '#FFF',
-          borderRadius: 20,
-          overflow: 'hidden',
-          marginBottom: 14,
-          ...Platform.select({
-            ios: {
-              shadowColor: PRIMARY,
-              shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: 0.06,
-              shadowRadius: 10,
-            },
-            android: { elevation: 3 },
-          }),
-        }}
-      >
-        {/* Cover area */}
-        {group.image ? (
-          <Image source={{ uri: group.image }} style={{ width: '100%', height: 120 }} resizeMode="cover" />
-        ) : (
-          <LinearGradient
-            colors={colors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              width: '100%',
-              height: 100,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 48, fontWeight: '900' }}>
-              {initials}
-            </Text>
-          </LinearGradient>
-        )}
-
-        <View style={{ padding: 16 }}>
-          {/* Name + privacy */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-            <Text style={{ color: PRIMARY, fontSize: 16, fontWeight: '700', flex: 1 }} numberOfLines={1}>
-              {group.name}
-            </Text>
-            {group.isPrivate && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: 'rgba(4,7,37,0.06)',
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 8,
-                  marginLeft: 8,
-                }}
-              >
-                <Ionicons name="lock-closed" size={11} color="rgba(4,7,37,0.45)" />
-                <Text style={{ color: 'rgba(4,7,37,0.45)', fontSize: 11, fontWeight: '600', marginLeft: 3 }}>
-                  Private
-                </Text>
-              </View>
+      <View key={group._id} style={styles.discoverCard}>
+        <View style={styles.discoverCardInner}>
+          {/* Left: Avatar */}
+          <View style={{ marginRight: 14 }}>
+            {group.image || group.avatar ? (
+              <Image source={{ uri: group.image || group.avatar }} style={styles.discoverAvatar} />
+            ) : (
+              <LinearGradient colors={colors} style={styles.discoverAvatar}>
+                <Text style={styles.discoverInitials}>{initials}</Text>
+              </LinearGradient>
             )}
           </View>
 
-          {/* Meta row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            <Ionicons name="people-outline" size={13} color="rgba(4,7,37,0.4)" />
-            <Text style={{ color: 'rgba(4,7,37,0.4)', fontSize: 12, marginLeft: 4, fontWeight: '500' }}>
-              {group.memberCount || 0} members
-            </Text>
-            <View
-              style={{
-                width: 3,
-                height: 3,
-                borderRadius: 2,
-                backgroundColor: 'rgba(4,7,37,0.2)',
-                marginHorizontal: 8,
-              }}
-            />
-            <Ionicons name="time-outline" size={13} color="rgba(4,7,37,0.4)" />
-            <Text style={{ color: 'rgba(4,7,37,0.4)', fontSize: 12, marginLeft: 4, fontWeight: '500' }}>
-              {getRelativeTime(group.createdAt)}
-            </Text>
+          {/* Center: Info */}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.discoverName} numberOfLines={1}>{group.name}</Text>
+              {group.isPrivate && (
+                <View style={styles.privateBadge}>
+                  <Ionicons name="lock-closed" size={9} color={ACCENT} />
+                </View>
+              )}
+            </View>
+            <Text style={styles.discoverDesc} numberOfLines={2}>{group.description}</Text>
+            <View style={styles.discoverMetaRow}>
+              <Ionicons name="people-outline" size={12} color="rgba(4,7,37,0.4)" />
+              <Text style={styles.discoverMetaText}>{group.memberCount || 0} members</Text>
+              <View style={styles.metaDot} />
+              <Text style={styles.discoverMetaText}>{getRelativeTime(group.createdAt)}</Text>
+            </View>
           </View>
 
-          {/* Description */}
-          <Text
-            style={{
-              color: 'rgba(4,7,37,0.55)',
-              fontSize: 13,
-              lineHeight: 20,
-              marginBottom: 14,
-            }}
-            numberOfLines={2}
-          >
-            {group.description}
-          </Text>
-
-          {/* Join button */}
+          {/* Right: Join Button */}
           <TouchableOpacity
-            style={{
-              backgroundColor: PRIMARY,
-              borderRadius: 14,
-              paddingVertical: 13,
-              alignItems: 'center',
-              flexDirection: 'row',
-              justifyContent: 'center',
-            }}
+            style={[styles.joinBtn, isJoining && styles.joinBtnLoading]}
             onPress={() => handleJoinGroup(group._id)}
             disabled={isJoining}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
             {isJoining ? (
-              <ActivityIndicator size="small" color="#FFF" />
+              <ActivityIndicator size="small" color={ACCENT} />
             ) : (
-              <>
-                <Ionicons name="people" size={16} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Join Group</Text>
-              </>
+              <Text style={styles.joinBtnText}>Join</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -424,184 +249,134 @@ const CommunityScreen = ({ navigation }: any) => {
     );
   };
 
-  // ─── Loading State ──────────────────────────────────────────────────────────
+  // ─── Header ───────────────────────────────────────────────────────────
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn} activeOpacity={0.7}>
+        <Ionicons name="chevron-back" size={22} color={PRIMARY} />
+      </TouchableOpacity>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.headerTitle}>Community</Text>
+        <Text style={styles.headerSubtitle}>
+          {myGroups.length > 0 ? `${myGroups.length} group${myGroups.length !== 1 ? 's' : ''} joined` : 'Find your community'}
+        </Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('CreateNewGroup')}
+        style={styles.headerAddBtn}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="add" size={20} color="#FFF" />
+      </TouchableOpacity>
+    </View>
+  );
 
+  // ─── Loading State ────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F9FC' }}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FC" />
+      <SafeAreaView style={styles.screen}>
+        <StatusBar barStyle="dark-content" backgroundColor={BG} />
         {renderHeader()}
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={styles.centerState}>
           <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={{ color: 'rgba(4,7,37,0.5)', marginTop: 16, fontSize: 14 }}>Loading groups...</Text>
+          <Text style={styles.centerStateText}>Loading groups...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // ─── Error State ────────────────────────────────────────────────────────────
-
+  // ─── Error State ──────────────────────────────────────────────────────
   if (error && !refreshing) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F9FC' }}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FC" />
+      <SafeAreaView style={styles.screen}>
+        <StatusBar barStyle="dark-content" backgroundColor={BG} />
         {renderHeader()}
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <View
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 22,
-              backgroundColor: 'rgba(239,68,68,0.1)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-            }}
-          >
+        <View style={styles.centerState}>
+          <View style={styles.errorIcon}>
             <Ionicons name="alert-circle-outline" size={32} color="#EF4444" />
           </View>
-          <Text style={{ color: PRIMARY, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>
-            Unable to Load Groups
-          </Text>
-          <Text style={{ color: 'rgba(4,7,37,0.5)', fontSize: 14, marginTop: 8, textAlign: 'center' }}>
-            {error}
-          </Text>
+          <Text style={styles.errorTitle}>Unable to Load Groups</Text>
+          <Text style={styles.errorMsg}>{error}</Text>
           <TouchableOpacity
-            style={{
-              backgroundColor: PRIMARY,
-              borderRadius: 14,
-              paddingHorizontal: 24,
-              paddingVertical: 13,
-              marginTop: 20,
-            }}
-            onPress={() => {
-              setLoading(true);
-              fetchGroups();
-            }}
+            style={styles.retryBtn}
+            onPress={() => { setLoading(true); fetchGroups(); }}
             activeOpacity={0.8}
           >
-            <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Try Again</Text>
+            <Text style={styles.retryBtnText}>Try Again</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  // ─── Main Render ────────────────────────────────────────────────────────────
-
+  // ─── Main Render ──────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F9FC' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FC" />
+    <SafeAreaView style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor={BG} />
       {renderHeader()}
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PRIMARY} colors={[PRIMARY]} />
         }
       >
         {/* Search Bar */}
-        <View
-          style={{
-            backgroundColor: '#FFF',
-            borderRadius: 16,
-            paddingHorizontal: 16,
-            paddingVertical: Platform.OS === 'ios' ? 12 : 4,
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginBottom: 20,
-            ...Platform.select({
-              ios: { shadowColor: PRIMARY, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
-              android: { elevation: 2 },
-            }),
-          }}
-        >
-          <Ionicons name="search" size={18} color="rgba(4,7,37,0.35)" />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search groups..."
-            placeholderTextColor="rgba(4,7,37,0.35)"
-            style={{
-              flex: 1,
-              marginLeft: 10,
-              color: PRIMARY,
-              fontSize: 14,
-              fontWeight: '500',
-              paddingVertical: Platform.OS === 'ios' ? 0 : 8,
-            }}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={18} color="rgba(4,7,37,0.3)" />
-            </TouchableOpacity>
-          )}
+        <View style={{ paddingHorizontal: 20, marginBottom: 6 }}>
+          <View style={[styles.searchBar, searchFocused && styles.searchBarFocused]}>
+            <Ionicons name="search" size={18} color={searchFocused ? ACCENT : 'rgba(4,7,37,0.3)'} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search groups..."
+              placeholderTextColor="rgba(4,7,37,0.3)"
+              style={styles.searchInput}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={18} color="rgba(4,7,37,0.25)" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* ── My Groups Section ──────────────────────────────────────────── */}
+        {/* ── My Groups (Horizontal) ─────────────────────────────────── */}
         {filteredMyGroups.length > 0 && (
           <View style={{ marginBottom: 24 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: PRIMARY, fontSize: 16, fontWeight: '800' }}>My Groups</Text>
-                <View
-                  style={{
-                    backgroundColor: PRIMARY,
-                    borderRadius: 10,
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    marginLeft: 8,
-                  }}
-                >
-                  <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700' }}>{filteredMyGroups.length}</Text>
-                </View>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Groups</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{filteredMyGroups.length}</Text>
               </View>
-              {myGroups.length > 5 && (
-                <TouchableOpacity onPress={() => navigation.navigate('MyGroups')} activeOpacity={0.7}>
-                  <Text style={{ color: 'rgba(4,7,37,0.45)', fontSize: 13, fontWeight: '600' }}>See All</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
-            <View
-              style={{
-                backgroundColor: '#FFF',
-                borderRadius: 18,
-                paddingHorizontal: 14,
-                ...Platform.select({
-                  ios: { shadowColor: PRIMARY, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
-                  android: { elevation: 2 },
-                }),
-              }}
-            >
-              {filteredMyGroups.slice(0, 5).map(renderMyGroupItem)}
-            </View>
-            <Text style={{ color: 'rgba(4,7,37,0.3)', fontSize: 11, marginTop: 8, textAlign: 'center' }}>
-              Long press a group to leave
-            </Text>
+            <FlatList
+              data={filteredMyGroups}
+              renderItem={renderMyGroupCard}
+              keyExtractor={(item) => item._id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+            />
+
+            <Text style={styles.hintText}>Long press to leave a group</Text>
           </View>
         )}
 
-        {/* ── Discover Groups Section ────────────────────────────────────── */}
-        <View style={{ marginBottom: 24 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-            <Text style={{ color: PRIMARY, fontSize: 16, fontWeight: '800' }}>Discover</Text>
-            <View
-              style={{
-                backgroundColor: 'rgba(59,130,246,0.1)',
-                borderRadius: 10,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                marginLeft: 8,
-              }}
-            >
-              <Text style={{ color: '#3B82F6', fontSize: 11, fontWeight: '700' }}>{filteredDiscoverGroups.length}</Text>
+        {/* ── Discover Section ───────────────────────────────────────── */}
+        <View style={{ paddingHorizontal: 20 }}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Discover</Text>
+            <View style={[styles.countBadge, { backgroundColor: 'rgba(0,122,255,0.1)' }]}>
+              <Text style={[styles.countBadgeText, { color: ACCENT }]}>{filteredDiscoverGroups.length}</Text>
             </View>
           </View>
 
-          {/* Filter Tabs */}
+          {/* Filter Pills */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -613,23 +388,26 @@ const CommunityScreen = ({ navigation }: any) => {
                 <TouchableOpacity
                   key={filter}
                   onPress={() => setActiveFilter(filter)}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 12,
-                    backgroundColor: isActive ? PRIMARY : '#FFF',
-                    borderWidth: 1,
-                    borderColor: isActive ? PRIMARY : 'rgba(4,7,37,0.1)',
-                  }}
+                  style={[styles.filterPill, isActive && styles.filterPillActive]}
                   activeOpacity={0.7}
                 >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: '600',
-                      color: isActive ? '#FFF' : 'rgba(4,7,37,0.5)',
-                    }}
-                  >
+                  {filter === 'Private' && (
+                    <Ionicons
+                      name="lock-closed"
+                      size={11}
+                      color={isActive ? '#fff' : 'rgba(4,7,37,0.4)'}
+                      style={{ marginRight: 4 }}
+                    />
+                  )}
+                  {filter === 'Public' && (
+                    <Ionicons
+                      name="globe-outline"
+                      size={12}
+                      color={isActive ? '#fff' : 'rgba(4,7,37,0.4)'}
+                      style={{ marginRight: 4 }}
+                    />
+                  )}
+                  <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
                     {filter}
                   </Text>
                 </TouchableOpacity>
@@ -637,85 +415,39 @@ const CommunityScreen = ({ navigation }: any) => {
             })}
           </ScrollView>
 
-          {/* Group Cards */}
+          {/* Discover Cards */}
           {filteredDiscoverGroups.length > 0 ? (
-            filteredDiscoverGroups.map(renderDiscoverGroupCard)
+            filteredDiscoverGroups.map(renderDiscoverCard)
           ) : (
-            <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 18,
-                  backgroundColor: 'rgba(4,7,37,0.06)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 14,
-                }}
-              >
-                <Ionicons name="search-outline" size={26} color="rgba(4,7,37,0.25)" />
+            <View style={styles.emptyDiscover}>
+              <View style={styles.emptyDiscoverIcon}>
+                <Ionicons name="telescope-outline" size={28} color="rgba(4,7,37,0.2)" />
               </View>
-              <Text style={{ color: PRIMARY, fontSize: 16, fontWeight: '700' }}>
+              <Text style={styles.emptyDiscoverTitle}>
                 {searchQuery ? 'No Groups Found' : 'No Groups Available'}
               </Text>
-              <Text
-                style={{
-                  color: 'rgba(4,7,37,0.45)',
-                  fontSize: 13,
-                  marginTop: 6,
-                  textAlign: 'center',
-                  paddingHorizontal: 32,
-                }}
-              >
-                {searchQuery ? 'Try adjusting your search terms' : 'Check back later for new groups to join'}
+              <Text style={styles.emptyDiscoverSub}>
+                {searchQuery ? 'Try adjusting your search terms' : 'Check back later for new groups'}
               </Text>
             </View>
           )}
         </View>
 
-        {/* ── Empty State ────────────────────────────────────────────────── */}
+        {/* ── Full Empty State ────────────────────────────────────────── */}
         {myGroups.length === 0 && discoverGroups.length === 0 && !searchQuery && (
-          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 24,
-                backgroundColor: 'rgba(4,7,37,0.06)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <Ionicons name="people-outline" size={36} color="rgba(4,7,37,0.25)" />
+          <View style={styles.fullEmpty}>
+            <View style={styles.fullEmptyIcon}>
+              <Ionicons name="people-outline" size={40} color="rgba(4,7,37,0.2)" />
             </View>
-            <Text style={{ color: PRIMARY, fontSize: 18, fontWeight: '700' }}>No Groups Yet</Text>
-            <Text
-              style={{
-                color: 'rgba(4,7,37,0.45)',
-                fontSize: 14,
-                marginTop: 6,
-                textAlign: 'center',
-                paddingHorizontal: 32,
-              }}
-            >
-              Be the first to create a community group
-            </Text>
+            <Text style={styles.fullEmptyTitle}>No Groups Yet</Text>
+            <Text style={styles.fullEmptySub}>Be the first to create a community group</Text>
             <TouchableOpacity
-              style={{
-                backgroundColor: PRIMARY,
-                borderRadius: 14,
-                paddingHorizontal: 24,
-                paddingVertical: 13,
-                marginTop: 20,
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
+              style={styles.createBtn}
               onPress={() => navigation.navigate('CreateNewGroup')}
               activeOpacity={0.8}
             >
               <Ionicons name="add" size={18} color="#FFF" style={{ marginRight: 6 }} />
-              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Create Group</Text>
+              <Text style={styles.createBtnText}>Create Group</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -723,5 +455,215 @@ const CommunityScreen = ({ navigation }: any) => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: BG },
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  centerStateText: { color: 'rgba(4,7,37,0.5)', marginTop: 16, fontSize: 14 },
+
+  // ── Header ──
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 14,
+  },
+  headerBackBtn: {
+    width: 40, height: 40, borderRadius: 14,
+    backgroundColor: 'rgba(4,7,37,0.05)',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 14,
+  },
+  headerTitle: { color: PRIMARY, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  headerSubtitle: { color: 'rgba(4,7,37,0.4)', fontSize: 12, fontWeight: '500', marginTop: 1 },
+  headerAddBtn: {
+    width: 40, height: 40, borderRadius: 14,
+    backgroundColor: PRIMARY,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // ── Search ──
+  searchBar: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    ...Platform.select({
+      ios: { shadowColor: PRIMARY, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
+      android: { elevation: 2 },
+    }),
+  },
+  searchBarFocused: {
+    borderColor: 'rgba(0,122,255,0.25)',
+    ...Platform.select({
+      ios: { shadowColor: ACCENT, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 4 },
+    }),
+  },
+  searchInput: {
+    flex: 1, marginLeft: 10, color: PRIMARY, fontSize: 14,
+    fontWeight: '500', paddingVertical: Platform.OS === 'ios' ? 0 : 8,
+  },
+
+  // ── Section ──
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 20, marginBottom: 14,
+  },
+  sectionTitle: { color: PRIMARY, fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  countBadge: {
+    backgroundColor: PRIMARY, borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8,
+  },
+  countBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  hintText: {
+    color: 'rgba(4,7,37,0.25)', fontSize: 11, textAlign: 'center', marginTop: 10,
+  },
+
+  // ── My Groups (Horizontal Cards) ──
+  myGroupCard: {
+    width: 100,
+    alignItems: 'center',
+    backgroundColor: CARD_BG,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    ...Platform.select({
+      ios: { shadowColor: PRIMARY, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10 },
+      android: { elevation: 3 },
+    }),
+  },
+  myGroupCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 10,
+  },
+  myGroupAvatar: {
+    width: 52, height: 52, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 10,
+  },
+  myGroupInitials: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  myGroupName: { color: PRIMARY, fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
+  myGroupMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  myGroupMembers: { color: 'rgba(4,7,37,0.35)', fontSize: 10, fontWeight: '600' },
+  myGroupLock: {
+    position: 'absolute', top: 8, right: 8,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: 'rgba(4,7,37,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // ── Discover Cards ──
+  discoverCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 18,
+    marginBottom: 10,
+    ...Platform.select({
+      ios: { shadowColor: PRIMARY, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
+      android: { elevation: 2 },
+    }),
+  },
+  discoverCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+  },
+  discoverAvatar: {
+    width: 52, height: 52, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  discoverInitials: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  discoverName: { color: PRIMARY, fontSize: 15, fontWeight: '700', flex: 1 },
+  discoverDesc: {
+    color: 'rgba(4,7,37,0.5)', fontSize: 12.5, lineHeight: 17,
+    marginTop: 3, marginBottom: 6,
+  },
+  discoverMetaRow: { flexDirection: 'row', alignItems: 'center' },
+  discoverMetaText: { color: 'rgba(4,7,37,0.4)', fontSize: 11, fontWeight: '500', marginLeft: 4 },
+  metaDot: {
+    width: 3, height: 3, borderRadius: 2,
+    backgroundColor: 'rgba(4,7,37,0.15)', marginHorizontal: 6,
+  },
+  privateBadge: {
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(0,122,255,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+    marginLeft: 6,
+  },
+  joinBtn: {
+    backgroundColor: 'rgba(0,122,255,0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 9,
+    marginLeft: 10,
+  },
+  joinBtnLoading: { paddingHorizontal: 12 },
+  joinBtnText: { color: ACCENT, fontSize: 13, fontWeight: '700' },
+
+  // ── Filter Pills ──
+  filterPill: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: CARD_BG,
+    borderWidth: 1, borderColor: 'rgba(4,7,37,0.08)',
+  },
+  filterPillActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  filterPillText: { fontSize: 13, fontWeight: '600', color: 'rgba(4,7,37,0.5)' },
+  filterPillTextActive: { color: '#FFF' },
+
+  // ── Empty States ──
+  emptyDiscover: { alignItems: 'center', paddingVertical: 40 },
+  emptyDiscoverIcon: {
+    width: 56, height: 56, borderRadius: 18,
+    backgroundColor: 'rgba(4,7,37,0.05)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  emptyDiscoverTitle: { color: PRIMARY, fontSize: 16, fontWeight: '700' },
+  emptyDiscoverSub: {
+    color: 'rgba(4,7,37,0.4)', fontSize: 13, marginTop: 6,
+    textAlign: 'center', paddingHorizontal: 32,
+  },
+
+  fullEmpty: { alignItems: 'center', paddingVertical: 48 },
+  fullEmptyIcon: {
+    width: 72, height: 72, borderRadius: 24,
+    backgroundColor: 'rgba(4,7,37,0.05)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  fullEmptyTitle: { color: PRIMARY, fontSize: 18, fontWeight: '700' },
+  fullEmptySub: {
+    color: 'rgba(4,7,37,0.4)', fontSize: 14, marginTop: 6,
+    textAlign: 'center', paddingHorizontal: 32,
+  },
+
+  createBtn: {
+    backgroundColor: PRIMARY, borderRadius: 14,
+    paddingHorizontal: 24, paddingVertical: 13,
+    marginTop: 20, flexDirection: 'row', alignItems: 'center',
+  },
+  createBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+
+  // ── Error State ──
+  errorIcon: {
+    width: 64, height: 64, borderRadius: 22,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  errorTitle: { color: PRIMARY, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  errorMsg: { color: 'rgba(4,7,37,0.5)', fontSize: 14, marginTop: 8, textAlign: 'center' },
+  retryBtn: {
+    backgroundColor: PRIMARY, borderRadius: 14,
+    paddingHorizontal: 24, paddingVertical: 13, marginTop: 20,
+  },
+  retryBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+});
 
 export default CommunityScreen;

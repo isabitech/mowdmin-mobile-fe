@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/contexts/AuthContext';
@@ -30,17 +31,19 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <AuthProvider>
-        <LanguageProvider>
-          <NotificationProvider>
-            <AppNavigator />
-            <StatusBar style="auto" />
-            <Toast />
-          </NotificationProvider>
-        </LanguageProvider>
-      </AuthProvider>
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <AuthProvider>
+          <LanguageProvider>
+            <NotificationProvider>
+              <AppNavigator />
+              <StatusBar style="auto" />
+              <Toast />
+            </NotificationProvider>
+          </LanguageProvider>
+        </AuthProvider>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
 

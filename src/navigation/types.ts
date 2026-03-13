@@ -20,7 +20,7 @@ export type RootStackParamList = {
   BibleStories: undefined;
   Community: undefined;
   CreateNewGroup: undefined;
-  GroupChat: { groupId: string };
+  GroupChat: { groupId: string; groupName?: string; groupImage?: string };
 };
 
 export type ShopStackParamList = {

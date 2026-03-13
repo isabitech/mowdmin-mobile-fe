@@ -39,13 +39,26 @@ export interface GroupMessage {
   updatedAt?: string;
 }
 
+const BACKEND_URL = 'https://mowdmin-mobile-be-qwo0.onrender.com';
+
+const fixPhotoUrl = (url: string | undefined): string => {
+  if (!url) return '';
+  if (url.includes('localhost')) {
+    return url.replace(/http:\/\/localhost:\d+/, BACKEND_URL);
+  }
+  if (url.startsWith('/uploads')) {
+    return `${BACKEND_URL}${url}`;
+  }
+  return url;
+};
+
 // Normalize backend message shape (senderId/content/avatar → sender/message/photo)
 const normalizeMessage = (raw: any): GroupMessage => {
   const s = raw.senderId || raw.sender;
   let sender: GroupMessage['sender'];
   if (typeof s === 'object' && s !== null) {
     const name = s.name || [s.firstName, s.lastName].filter(Boolean).join(' ') || 'Unknown';
-    sender = { _id: s._id || '', name, photo: s.photo || s.avatar || '' };
+    sender = { _id: s._id || '', name, photo: fixPhotoUrl(s.photo || s.avatar || s.photoUrl) };
   } else {
     sender = { _id: typeof s === 'string' ? s : '', name: 'Unknown', photo: '' };
   }
@@ -124,8 +137,10 @@ class GroupsAPI {
     try {
       const response = await apiClient.post<JoinGroupResponse>(`/groups/${groupId}/join`);
       return response.data.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[GroupsAPI] joinGroup error:', error);
+      console.error('[GroupsAPI] joinGroup response data:', JSON.stringify(error.response?.data));
+      console.error('[GroupsAPI] joinGroup status:', error.response?.status);
       throw error;
     }
   }
