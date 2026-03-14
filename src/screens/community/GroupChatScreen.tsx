@@ -176,7 +176,7 @@ const GroupChatScreen = ({ navigation, route }: any) => {
       const content = replyTo
         ? `↩ ${replyTo.name}: ${replyTo.message.slice(0, 50)}${replyTo.message.length > 50 ? '...' : ''}\n\n${trimmed}`
         : trimmed;
-      const newMsg = await groupsAPI.sendMessage(groupId, content);
+      const newMsg = await groupsAPI.sendMessage(groupId, content, 'text', myPhotoRef.current);
       const msg: GroupMessage = {
         ...newMsg,
         sender: {

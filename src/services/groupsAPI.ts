@@ -185,11 +185,11 @@ class GroupsAPI {
     }
   }
 
-  async sendMessage(groupId: string, message: string, type: string = 'text'): Promise<GroupMessage> {
+  async sendMessage(groupId: string, message: string, type: string = 'text', senderPhoto?: string): Promise<GroupMessage> {
     try {
       const response = await apiClient.post(
         `/groups/${groupId}/messages`,
-        { content: message, message, type }
+        { content: message, message, type, senderPhoto }
       );
       return normalizeMessage(response.data.data);
     } catch (error) {
@@ -199,8 +199,8 @@ class GroupsAPI {
   }
 
   // Alias for compatibility
-  async sendGroupMessage(groupId: string, content: string): Promise<GroupMessage> {
-    return this.sendMessage(groupId, content);
+  async sendGroupMessage(groupId: string, content: string, senderPhoto?: string): Promise<GroupMessage> {
+    return this.sendMessage(groupId, content, 'text', senderPhoto);
   }
 }
 
