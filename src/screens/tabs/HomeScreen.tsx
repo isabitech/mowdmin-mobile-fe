@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,7 @@ import NotificationIconWithBadge from '../../components/NotificationIconWithBadg
 import { profileAPI, Profile } from '../../services/profileApi';
 import { eventsAPI, Event as APIEvent } from '../../services/eventsApi';
 import { bibleVersesAPI, DailyVerse as APIDailyVerse } from '../../services/bibleVersesApi';
+import mediaAPI, { MediaItemAPI } from '../../services/mediaAPI';
 
 const { width } = Dimensions.get('window');
 
@@ -220,6 +222,30 @@ const useEvents = () => {
   return { events, loading, fetchEvents };
 };
 
+const useMedia = () => {
+  const [mediaItems, setMediaItems] = useState<VideoItem[]>([]);
+
+  const fetchMedia = useCallback(async () => {
+    try {
+      const response = await mediaAPI.getAllMedia();
+      if (response.status === 'success' && response.data?.length > 0) {
+        const items: VideoItem[] = response.data.slice(0, 5).map((m: MediaItemAPI) => ({
+          id: m._id,
+          title: m.title,
+          category: m.category_id?.name || 'Media',
+          thumbnail: m.thumbnail || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=1000&fit=crop',
+          isLive: m.isLive,
+        }));
+        setMediaItems(items);
+      }
+    } catch {
+      // Silently fail — fallback videos will be used
+    }
+  }, []);
+
+  return { mediaItems, fetchMedia };
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const HomeScreen = ({ navigation }: any) => {
@@ -231,19 +257,21 @@ const HomeScreen = ({ navigation }: any) => {
   const { verse, loading: verseLoading, fetchVerse } = useDailyVerse();
   const { profile, loading: profileLoading, fetchProfile } = useProfile();
   const { events, loading: eventsLoading, fetchEvents } = useEvents();
+  const { mediaItems, fetchMedia } = useMedia();
 
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
       fetchEvents();
-    }, [fetchProfile, fetchEvents])
+      fetchMedia();
+    }, [fetchProfile, fetchEvents, fetchMedia])
   );
 
 const onRefresh = useCallback(async () => {
   setRefreshing(true);
-  await Promise.all([fetchProfile(), fetchEvents(), fetchVerse(true)]);
+  await Promise.all([fetchProfile(), fetchEvents(), fetchVerse(true), fetchMedia()]);
   setRefreshing(false);
-}, [fetchProfile, fetchEvents, fetchVerse]);
+}, [fetchProfile, fetchEvents, fetchVerse, fetchMedia]);
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
@@ -255,30 +283,12 @@ const onRefresh = useCallback(async () => {
     itemVisiblePercentThreshold: 50,
   }).current;
 
-  const videos: VideoItem[] = [
-    {
-      id: '1',
-      title: 'Revival Night: Hope in Christ',
-      category: 'Rev. Emmanuel Adeyemi',
-      thumbnail: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=1000&fit=crop',
-      isLive: true,
-      views: '4.5k',
-    },
-    {
-      id: '2',
-      title: 'Praise Unplugged',
-      category: 'Pastor Michael Adams',
-      thumbnail: 'https://images.unsplash.com/photo-1508025690966-2a9a1957da31?w=800&h=1000&fit=crop',
-      views: '2.3k',
-    },
-    {
-      id: '3',
-      title: 'Word Alive Service',
-      category: 'Rev. Emmanuel Adeyemi',
-      thumbnail: 'https://images.unsplash.com/photo-1519834785169-98be25ec3f84?w=800&h=1000&fit=crop',
-      views: '8.1k',
-    },
+  const fallbackVideos: VideoItem[] = [
+    { id: '1', title: 'Revival Night: Hope in Christ', category: 'Rev. Emmanuel Adeyemi', thumbnail: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=1000&fit=crop', isLive: true, views: '4.5k' },
+    { id: '2', title: 'Praise Unplugged', category: 'Pastor Michael Adams', thumbnail: 'https://images.unsplash.com/photo-1508025690966-2a9a1957da31?w=800&h=1000&fit=crop', views: '2.3k' },
+    { id: '3', title: 'Word Alive Service', category: 'Rev. Emmanuel Adeyemi', thumbnail: 'https://images.unsplash.com/photo-1519834785169-98be25ec3f84?w=800&h=1000&fit=crop', views: '8.1k' },
   ];
+  const videos: VideoItem[] = mediaItems.length > 0 ? mediaItems : fallbackVideos;
 
   // ─── Sub-renders ─────────────────────────────────────────────────────────────
 
@@ -867,7 +877,14 @@ const onRefresh = useCallback(async () => {
                   >
                     <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{verse.reference}</Text>
                   </View>
-                  <TouchableOpacity style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <TouchableOpacity
+                    style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    onPress={() => {
+                      if (verse) {
+                        Share.share({ message: `"${verse.text}"\n\n— ${verse.reference}` });
+                      }
+                    }}
+                  >
                     <Ionicons name="share-outline" size={17} color="rgba(4,7,37,0.35)" />
                     <Text style={{ color: 'rgba(4,7,37,0.35)', fontSize: 12, fontWeight: '600' }}>
                       Share

@@ -21,6 +21,8 @@ export type RootStackParamList = {
   Community: undefined;
   CreateNewGroup: undefined;
   GroupChat: { groupId: string; groupName?: string; groupImage?: string };
+  ChangePassword: undefined;
+  Membership: undefined;
 };
 
 export type ShopStackParamList = {

@@ -54,7 +54,7 @@ export const mediaAPI = {
     thumbnail?: string;
     isLive?: boolean;
   }): Promise<MediaItemAPI> => {
-    const response = await apiClient.post('/media', mediaData);
+    const response = await apiClient.post('/media/create', mediaData);
     return response.data;
   },
 

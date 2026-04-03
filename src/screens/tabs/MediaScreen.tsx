@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import NotificationIconWithBadge from '../../components/NotificationIconWithBadge';
 import mediaAPI, { MediaItemAPI } from '../../services/mediaAPI';
+import mediaBookmarkAPI, { MediaBookmark } from '../../services/mediaBookmarkAPI';
 
 const PRIMARY = '#040725';
 const ACCENT = '#3B82F6';
@@ -37,11 +38,31 @@ const MediaScreen = ({ navigation }: Props) => {
   const [seeAllType, setSeeAllType] = useState<SeeAllType>(null);
 
   const [categories, setCategories] = useState<string[]>(['All']);
+  const [bookmarks, setBookmarks] = useState<MediaBookmark[]>([]);
+
+  const toggleBookmark = async (mediaId: string) => {
+    const existingId = mediaBookmarkAPI.getBookmarkId(mediaId, bookmarks);
+    try {
+      if (existingId) {
+        await mediaBookmarkAPI.removeBookmark(existingId);
+        setBookmarks(prev => prev.filter(b => b._id !== existingId));
+      } else {
+        const newBm = await mediaBookmarkAPI.addBookmark(mediaId);
+        setBookmarks(prev => [...prev, newBm]);
+      }
+    } catch (error: any) {
+      console.error('[Media] bookmark error:', error.message);
+    }
+  };
 
   const fetchMedia = async () => {
     try {
       setError(null);
-      const response = await mediaAPI.getAllMedia();
+      const [response, bm] = await Promise.all([
+        mediaAPI.getAllMedia(),
+        mediaBookmarkAPI.getMyBookmarks().catch(() => []),
+      ]);
+      setBookmarks(bm);
       if (response.status === 'success' && response.data) {
         setAllMedia(response.data);
 
@@ -241,18 +262,25 @@ const MediaScreen = ({ navigation }: Props) => {
             <Ionicons name="play" size={22} color={PRIMARY} style={{ marginLeft: 3 }} />
           </View>
         </View>
-        <TouchableOpacity style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          width: 28,
-          height: 28,
-          borderRadius: 14,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <Ionicons name="ellipsis-vertical" size={14} color="#FFFFFF" />
+        <TouchableOpacity
+          onPress={() => toggleBookmark(item._id)}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons
+            name={mediaBookmarkAPI.isBookmarked(item._id, bookmarks) ? 'bookmark' : 'bookmark-outline'}
+            size={14}
+            color="#FFFFFF"
+          />
         </TouchableOpacity>
       </View>
       <Text style={{ color: PRIMARY, fontSize: 14, fontWeight: '600', marginTop: 10 }} numberOfLines={1}>

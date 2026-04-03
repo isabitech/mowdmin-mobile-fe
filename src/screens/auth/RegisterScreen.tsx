@@ -44,10 +44,10 @@ export default function RegisterScreen({ navigation }: Props) {
     let valid = true;
 
     if (!name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Full name is required';
       valid = false;
     } else if (name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+      newErrors.name = 'Full name must be at least 2 characters';
       valid = false;
     }
 
@@ -158,7 +158,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 />
                 <TextInput
                   className="flex-1 text-base text-[#040725] p-0"
-                  placeholder="Enter your name"
+                  placeholder="Enter your full name"
                   placeholderTextColor="#9CA3AF"
                   value={name}
                   onChangeText={(text) => { setName(text); if (errors.name) setErrors(e => ({ ...e, name: '' })); }}

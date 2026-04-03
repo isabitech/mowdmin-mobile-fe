@@ -8,12 +8,18 @@ import {
   Modal,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { donationsAPI, Donation } from '../../services/donationsApi';
+import { payForDonation } from '../../services/stripeService';
 
 const PRIMARY = '#040725';
 
@@ -97,6 +103,10 @@ export default function GivingHistoryScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showGiveModal, setShowGiveModal] = useState(false);
+  const [giveAmount, setGiveAmount] = useState('');
+  const [giveCampaign, setGiveCampaign] = useState('');
+  const [givingLoading, setGivingLoading] = useState(false);
 
   const fetchDonations = useCallback(async () => {
     try {
@@ -120,6 +130,39 @@ export default function GivingHistoryScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchDonations();
+  };
+
+  const handleGiveNow = async () => {
+    const amount = parseFloat(giveAmount);
+    if (!amount || amount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid donation amount.');
+      return;
+    }
+    setGivingLoading(true);
+    try {
+      const donation = await donationsAPI.createDonation({
+        amount,
+        campaign: giveCampaign.trim() || undefined,
+      });
+
+      // Attempt Stripe payment
+      const paid = await payForDonation(donation._id);
+
+      setTransactions(prev => [toTransaction({ ...donation, status: paid ? 'Success' : 'Pending' }), ...prev]);
+      setShowGiveModal(false);
+      setGiveAmount('');
+      setGiveCampaign('');
+
+      if (paid) {
+        Alert.alert('Thank You!', 'Your donation was successful.');
+      } else {
+        Alert.alert('Donation Saved', 'Your donation has been recorded. You can complete payment later.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to process donation.');
+    } finally {
+      setGivingLoading(false);
+    }
   };
 
   const filteredTransactions = selectedCategory === 'all'
@@ -275,6 +318,7 @@ export default function GivingHistoryScreen() {
           <TouchableOpacity
             className="flex-1 flex-row items-center justify-center bg-white rounded-2xl py-4 mr-2 border border-gray-100"
             activeOpacity={0.7}
+            onPress={() => setShowGiveModal(true)}
           >
             <Ionicons name="add-circle" size={20} color={PRIMARY} />
             <Text className="text-[#040725] font-semibold ml-2">Give Now</Text>
@@ -282,6 +326,7 @@ export default function GivingHistoryScreen() {
           <TouchableOpacity
             className="flex-1 flex-row items-center justify-center bg-white rounded-2xl py-4 ml-2 border border-gray-100"
             activeOpacity={0.7}
+            onPress={() => Alert.alert('Coming Soon', 'Recurring donations will be available soon.')}
           >
             <Ionicons name="repeat" size={20} color={PRIMARY} />
             <Text className="text-[#040725] font-semibold ml-2">Recurring</Text>
@@ -326,7 +371,13 @@ export default function GivingHistoryScreen() {
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-[#040725] font-bold text-lg">Transactions</Text>
             <View className="flex-row items-center">
-              <TouchableOpacity className="flex-row items-center bg-white px-3 py-2 rounded-lg border border-gray-200">
+              <TouchableOpacity
+                className="flex-row items-center bg-white px-3 py-2 rounded-lg border border-gray-200"
+                onPress={() => {
+                  const nextIndex = categories.findIndex(c => c.id === selectedCategory) + 1;
+                  setSelectedCategory(categories[nextIndex % categories.length].id);
+                }}
+              >
                 <Ionicons name="filter" size={16} color="#6B7280" />
                 <Text className="text-gray-500 text-sm ml-2">Filter</Text>
               </TouchableOpacity>
@@ -416,6 +467,11 @@ export default function GivingHistoryScreen() {
                 <View className="flex-row mt-6">
                   <TouchableOpacity
                     className="flex-1 flex-row items-center justify-center py-4 bg-gray-100 rounded-xl mr-2"
+                    onPress={() => {
+                      Share.share({
+                        message: `Donation: ${selectedTransaction.title}\nAmount: ${selectedTransaction.amount}\nDate: ${selectedTransaction.date}\nStatus: ${selectedTransaction.status}`,
+                      });
+                    }}
                   >
                     <Ionicons name="share-outline" size={20} color={PRIMARY} />
                     <Text className="text-[#040725] font-semibold ml-2">Share</Text>
@@ -423,6 +479,11 @@ export default function GivingHistoryScreen() {
                   <TouchableOpacity
                     className="flex-1 flex-row items-center justify-center py-4 rounded-xl ml-2"
                     style={{ backgroundColor: PRIMARY }}
+                    onPress={() => {
+                      Share.share({
+                        message: `--- Donation Receipt ---\n\n${selectedTransaction.title}\nAmount: ${selectedTransaction.amount}\nDate: ${selectedTransaction.date}\nTime: ${selectedTransaction.time}\nPayment: ${selectedTransaction.paymentMethod}\nStatus: ${selectedTransaction.status}\n\n--- Mowdministries ---`,
+                      });
+                    }}
                   >
                     <Ionicons name="download-outline" size={20} color="#FFFFFF" />
                     <Text className="text-white font-semibold ml-2">Receipt</Text>
@@ -434,6 +495,59 @@ export default function GivingHistoryScreen() {
             <View className="h-8" />
           </View>
         </View>
+      </Modal>
+
+      {/* Give Now Modal */}
+      <Modal visible={showGiveModal} transparent animationType="slide">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8">
+              <View className="flex-row items-center justify-between mb-6">
+                <Text className="text-lg font-bold text-[#040725]">Give Now</Text>
+                <TouchableOpacity
+                  onPress={() => setShowGiveModal(false)}
+                  className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+                >
+                  <Ionicons name="close" size={22} color={PRIMARY} />
+                </TouchableOpacity>
+              </View>
+
+              <Text className="text-gray-500 text-sm mb-2 font-medium">Amount ($)</Text>
+              <TextInput
+                value={giveAmount}
+                onChangeText={setGiveAmount}
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                className="bg-gray-50 rounded-xl px-4 py-3.5 text-lg font-bold border border-gray-100 mb-4"
+                style={{ color: PRIMARY }}
+              />
+
+              <Text className="text-gray-500 text-sm mb-2 font-medium">Campaign (optional)</Text>
+              <TextInput
+                value={giveCampaign}
+                onChangeText={setGiveCampaign}
+                placeholder="e.g. Tithe, Missions, Youth"
+                placeholderTextColor="#9CA3AF"
+                className="bg-gray-50 rounded-xl px-4 py-3.5 text-base border border-gray-100 mb-6"
+                style={{ color: PRIMARY }}
+              />
+
+              <TouchableOpacity
+                onPress={handleGiveNow}
+                disabled={givingLoading || !giveAmount}
+                className="rounded-xl py-4 items-center"
+                style={{ backgroundColor: giveAmount ? PRIMARY : '#D1D5DB' }}
+              >
+                {givingLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white font-bold text-base">Submit Donation</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

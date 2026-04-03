@@ -92,9 +92,8 @@ export const profileAPI = {
     return transformProfile(data);
   },
 
-  changePassword: async (email: string, currentPassword: string, newPassword: string): Promise<any> => {
+  changePassword: async (_email: string, currentPassword: string, newPassword: string): Promise<any> => {
     const response = await apiClient.post('/auth/change-password', {
-      email,
       currentPassword,
       newPassword,
     });

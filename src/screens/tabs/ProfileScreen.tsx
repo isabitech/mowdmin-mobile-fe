@@ -143,6 +143,14 @@ const ProfileScreen = () => {
       showArrow: true,
     },
     {
+      id: '1b',
+      title: 'Change Password',
+      icon: 'lock-closed-outline',
+      iconType: 'ionicon',
+      onPress: () => navigation.navigate('ChangePassword' as never),
+      showArrow: true,
+    },
+    {
       id: '2',
       title: t('profile.notifications') || 'Notifications',
       icon: 'notifications-outline',
@@ -168,6 +176,14 @@ const ProfileScreen = () => {
       icon: 'hand-coin-outline',
       iconType: 'material-community',
       onPress: () => navigation.navigate('GivingHistory' as never),
+      showArrow: true,
+    },
+    {
+      id: '4b',
+      title: 'Membership',
+      icon: 'card-account-details-outline',
+      iconType: 'material-community',
+      onPress: () => navigation.navigate('Membership' as never),
       showArrow: true,
     },
   ];

@@ -42,7 +42,7 @@ export interface PrayerRequest {
 
 export interface PrayerComment {
   _id: string;
-  userId: string;
+  userId: string | { _id: string; name?: string; email?: string; photo?: string };
   prayerId: string;
   comment: string;
   createdAt: string;
@@ -213,7 +213,7 @@ class PrayerAPI {
    */
   async getMyPrayers(): Promise<Prayer[]> {
     try {
-      const response = await apiClient.get<AllPrayersResponse>('/prayer/my-prayers');
+      const response = await apiClient.get<AllPrayersResponse>('/prayer/user');
       return response.data.data;
     } catch (error) {
       console.error('Error fetching my prayers:', error);
@@ -239,7 +239,7 @@ class PrayerAPI {
    */
   async createPrayer(prayerData: CreatePrayerData): Promise<Prayer> {
     try {
-      const response = await apiClient.post<SinglePrayerResponse>('/prayer', prayerData);
+      const response = await apiClient.post<SinglePrayerResponse>('/prayer/create', prayerData);
       return response.data.data;
     } catch (error) {
       console.error('Error creating prayer:', error);
@@ -296,8 +296,12 @@ class PrayerAPI {
         { comment }
       );
       return response.data.data;
-    } catch (error) {
-      console.error('Error adding comment:', error);
+    } catch (error: any) {
+      console.log('[CommentDebug] prayerId:', prayerId);
+      console.log('[CommentDebug] comment:', comment);
+      console.log('[CommentDebug] status:', error?.response?.status);
+      console.log('[CommentDebug] data:', JSON.stringify(error?.response?.data || {}));
+      console.log('[CommentDebug] message:', error?.message);
       throw error;
     }
   }
@@ -307,10 +311,14 @@ class PrayerAPI {
    */
   async getComments(prayerId: string): Promise<PrayerComment[]> {
     try {
-      const response = await apiClient.get<CommentsListResponse>(
+      const response = await apiClient.get(
         `/prayer-comment/${prayerId}/comments`
       );
-      return response.data.data;
+      const data = response.data.data;
+      console.log('[CommentDebug] getComments raw:', JSON.stringify(data));
+      // Backend returns { comments, total } or a flat array
+      const list = Array.isArray(data) ? data : (data?.comments || []);
+      return list;
     } catch (error) {
       console.error('Error fetching comments:', error);
       throw error;

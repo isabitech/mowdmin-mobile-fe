@@ -226,8 +226,34 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
       Alert.alert('Registration Failed', backendMessage, [{ text: 'OK' }]);
     } finally {
       setRegistering(false);
-      console.log('[EventsScreen] Registration process complete');
     }
+  };
+
+  const handleUnregister = async (eventId: string) => {
+    Alert.alert(
+      'Unregister',
+      'Are you sure you want to unregister from this event?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unregister',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setRegistering(true);
+              await eventRegistrationAPI.unregisterFromEvent(eventId);
+              Alert.alert('Success', 'You have been unregistered from this event.');
+              const registrationsData = await eventRegistrationAPI.getUserRegistrations();
+              setUserRegistrations(registrationsData);
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to unregister.');
+            } finally {
+              setRegistering(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Generate calendar days for current month (with leading nulls for weekday offset)
@@ -901,27 +927,25 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             )}
 
-            {/* Register / Already Registered Button */}
+            {/* Register / Unregister Button */}
             <TouchableOpacity
               className="py-4 rounded-xl flex-row items-center justify-center"
-              style={{ backgroundColor: registered ? '#22C55E' : '#040725' }}
-              onPress={() => !registered && handleRegister(selectedEvent.id)}
-              disabled={registered || registering}
+              style={{ backgroundColor: registered ? '#EF4444' : '#040725' }}
+              onPress={() => registered ? handleUnregister(selectedEvent.id) : handleRegister(selectedEvent.id)}
+              disabled={registering}
             >
               {registering ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  {registered && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={24}
-                      color="#FFFFFF"
-                      style={{ marginRight: 8 }}
-                    />
-                  )}
+                  <Ionicons
+                    name={registered ? 'close-circle' : 'checkmark-circle-outline'}
+                    size={24}
+                    color="#FFFFFF"
+                    style={{ marginRight: 8 }}
+                  />
                   <Text className="text-white text-lg font-bold">
-                    {registered ? 'Already Registered' : 'Register for Event'}
+                    {registered ? 'Unregister' : 'Register for Event'}
                   </Text>
                 </>
               )}

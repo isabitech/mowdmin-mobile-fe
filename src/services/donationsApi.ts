@@ -33,7 +33,7 @@ export const donationsAPI = {
     campaign?: string;
     currency?: string;
   }): Promise<Donation> => {
-    const response = await apiClient.post('/donation/create', data);
+    const response = await apiClient.post('/donation', data);
     return transformDonation(response.data?.data || response.data);
   },
 
@@ -47,9 +47,10 @@ export const donationsAPI = {
   },
 
   getMyDonations: async (): Promise<Donation[]> => {
-    const response = await apiClient.get('/donation/user');
-    const items = response.data?.data || response.data || [];
-    return Array.isArray(items) ? items.map(transformDonation) : [];
+    const response = await apiClient.get('/donation/me');
+    const raw = response.data?.data;
+    const items = Array.isArray(raw) ? raw : (raw?.donations || []);
+    return items.map(transformDonation);
   },
 
   getDonationById: async (donationId: string): Promise<Donation> => {

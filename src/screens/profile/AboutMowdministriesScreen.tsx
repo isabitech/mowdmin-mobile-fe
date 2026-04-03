@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import apiClient from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +18,14 @@ const PRIMARY = '#040725';
 
 export default function AboutMowdministriesScreen() {
   const navigation = useNavigation();
+  const [info, setInfo] = useState<any>(null);
+
+  useEffect(() => {
+    apiClient.get('/info').then(res => {
+      const data = res.data?.data || res.data;
+      if (data) setInfo(data);
+    }).catch(() => {});
+  }, []);
 
   const openLink = (url: string) => {
     Linking.openURL(url);
@@ -134,7 +143,7 @@ export default function AboutMowdministriesScreen() {
               <View className="flex-1">
                 <Text className="text-[#040725] font-bold text-lg mb-2">Our Mission</Text>
                 <Text className="text-gray-600 leading-6 text-sm">
-                  To spread spiritual enlightenment and provide global ministry management that empowers believers worldwide to live a life of purpose, faith, and transformative impact.
+                  {info?.mission || 'To spread spiritual enlightenment and provide global ministry management that empowers believers worldwide to live a life of purpose, faith, and transformative impact.'}
                 </Text>
               </View>
             </View>
@@ -152,7 +161,7 @@ export default function AboutMowdministriesScreen() {
               <View className="flex-1">
                 <Text className="text-[#040725] font-bold text-lg mb-2">Our Vision</Text>
                 <Text className="text-gray-600 leading-6 text-sm">
-                  To become a worldwide beacon of spiritual leadership, fostering a connected community where every individual has access to biblical resources and supportive fellowship.
+                  {info?.vision || 'To become a worldwide beacon of spiritual leadership, fostering a connected community where every individual has access to biblical resources and supportive fellowship.'}
                 </Text>
               </View>
             </View>
@@ -224,7 +233,7 @@ export default function AboutMowdministriesScreen() {
             <Text className="text-[#040725] font-semibold text-base ml-2">Who We Are</Text>
           </View>
           <Text className="text-gray-600 leading-7 text-sm">
-            Mowdministries is a global faith-based organization dedicated to spiritual growth and community development. Through our mobile-first approach, we've bridged the gap between traditional ministry and modern accessibility, serving millions through digital devotionals, live streaming services, and physical missions across 50+ countries.
+            {info?.about || info?.description || "Mowdministries is a global faith-based organization dedicated to spiritual growth and community development. Through our mobile-first approach, we've bridged the gap between traditional ministry and modern accessibility, serving millions through digital devotionals, live streaming services, and physical missions across 50+ countries."}
           </Text>
         </View>
 

@@ -24,6 +24,8 @@ import BibleStoriesScreen from '../screens/content/BibleStoriesScreen';
 import CommunityScreen from '../screens/community/CommunityScreen';
 import CreateNewGroupScreen from '../screens/community/CreateNewGroupScreen';
 import GroupChatScreen from '../screens/community/GroupChatScreen';
+import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
+import MembershipScreen from '../screens/profile/MembershipScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -76,6 +78,8 @@ export default function AppNavigator() {
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="CreateNewGroup" component={CreateNewGroupScreen} />
         <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="Membership" component={MembershipScreen} />
       </Stack.Navigator>
   );
 }

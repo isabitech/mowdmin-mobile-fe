@@ -4,14 +4,21 @@
     "slug": "mowd",
     "version": "1.0.0",
     "web": {
-      "favicon": "./src/assets/icon.png",
+      "favicon": "./src/assets/icon.png"
     },
     "experiments": {
       "tsconfigPaths": true
     },
     "plugins": [
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.mowd.com",
+          "enableGooglePay": true
+        }
+      ]
     ],
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",

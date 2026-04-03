@@ -41,24 +41,75 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Track if we're currently refreshing
+let isRefreshing = false;
+let failedQueue: { resolve: (token: string) => void; reject: (err: any) => void }[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else if (token) resolve(token);
+  });
+  failedQueue = [];
+};
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Clear auth data from storage
+    const originalRequest = error.config as any;
+    const url = originalRequest?.url || '';
+    const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/verify') || url.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !isAuthRoute && !originalRequest._retry) {
+      // Try to refresh the token first
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(apiClient(originalRequest));
+            },
+            reject,
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await AsyncStorage.getItem('@app:refreshToken');
+        if (refreshToken) {
+          const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+          const newToken = res.data?.data?.token || res.data?.token;
+          if (newToken) {
+            await AsyncStorage.setItem('@app:token', newToken);
+            const newRefresh = res.data?.data?.refreshToken || res.data?.refreshToken;
+            if (newRefresh) await AsyncStorage.setItem('@app:refreshToken', newRefresh);
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            processQueue(null, newToken);
+            return apiClient(originalRequest);
+          }
+        }
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+      } finally {
+        isRefreshing = false;
+      }
+
+      // Refresh failed — clear auth and logout
       await AsyncStorage.multiRemove([
         '@app:token',
         '@app:isAuthenticated',
         '@app:userData',
+        '@app:refreshToken',
       ]);
 
-      // Notify the auth context
       if (onUnauthorizedCallback) {
         onUnauthorizedCallback();
       }
 
-      // Return a custom error
       return Promise.reject(new UnauthorizedError());
     }
     return Promise.reject(error);

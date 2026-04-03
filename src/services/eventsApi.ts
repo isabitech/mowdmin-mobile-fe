@@ -154,6 +154,11 @@ export const eventsAPI = {
 };
 
 export const eventRegistrationAPI = {
+  // Unregister from an event
+  unregisterFromEvent: async (eventId: string): Promise<void> => {
+    await apiClient.delete(`/event-registration/unregister/${eventId}`);
+  },
+
   // Register for an event
   registerForEvent: async (eventId: string, ticketCode?: string): Promise<EventRegistration> => {
     console.log('[EventRegistrationAPI] registerForEvent called:', { eventId, ticketCode });

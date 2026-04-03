@@ -8,8 +8,12 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import Toast from 'react-native-toast-message';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { initI18n } from './src/i18tn/i18tn';
 import './global.css';
+
+// TODO: Replace with your actual Stripe publishable key
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_YOUR_KEY_HERE';
 
 export default function App() {
   const [i18nInitialized, setI18nInitialized] = useState(false);
@@ -32,17 +36,19 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
-        <AuthProvider>
-          <LanguageProvider>
-            <NotificationProvider>
-              <AppNavigator />
-              <StatusBar style="auto" />
-              <Toast />
-            </NotificationProvider>
-          </LanguageProvider>
-        </AuthProvider>
-      </NavigationContainer>
+      <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+        <NavigationContainer>
+          <AuthProvider>
+            <LanguageProvider>
+              <NotificationProvider>
+                <AppNavigator />
+                <StatusBar style="auto" />
+                <Toast />
+              </NotificationProvider>
+            </LanguageProvider>
+          </AuthProvider>
+        </NavigationContainer>
+      </StripeProvider>
     </GestureHandlerRootView>
   );
 }

@@ -13,6 +13,7 @@ import CartItemComponent from '../components/CartItem';
 import { useCart } from '../context/CartContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ordersAPI } from '../../../../services/ordersAPI';
+import { payForOrder } from '../../../../services/stripeService';
 
 interface Props {
   navigation: any;
@@ -38,19 +39,22 @@ const CartScreen: React.FC<Props> = ({ navigation }) => {
 
       const order = await ordersAPI.createOrder(orderItems, totalPrice);
 
-      Alert.alert(
-        'Order Placed',
-        `Your order #${order._id.slice(-6).toUpperCase()} has been created successfully. Total: € ${totalPrice.toFixed(2)}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              clearCart();
-              navigation.navigate('ShopHome');
-            },
-          },
-        ]
-      );
+      // Attempt Stripe payment
+      const paid = await payForOrder(order._id);
+
+      if (paid) {
+        Alert.alert(
+          'Payment Successful',
+          `Your order #${order._id.slice(-6).toUpperCase()} has been paid. Total: € ${totalPrice.toFixed(2)}`,
+          [{ text: 'OK', onPress: () => { clearCart(); navigation.navigate('ShopHome'); } }]
+        );
+      } else {
+        Alert.alert(
+          'Order Saved',
+          `Your order #${order._id.slice(-6).toUpperCase()} has been created. You can complete payment later.`,
+          [{ text: 'OK', onPress: () => { clearCart(); navigation.navigate('ShopHome'); } }]
+        );
+      }
     } catch (error: any) {
       Alert.alert(
         'Order Failed',

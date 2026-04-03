@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,19 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Modal,
+  FlatList,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import NotificationIconWithBadge from '../../components/NotificationIconWithBadge';
-import { prayerAPI, Prayer, PrayerRequest } from '../../services/prayerAPI';
+import { prayerAPI, Prayer, PrayerRequest, PrayerComment } from '../../services/prayerAPI';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../contexts/AuthContext';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const PRIMARY = '#040725';
 const ACCENT = '#3B82F6';
@@ -26,7 +33,9 @@ interface Props {
 }
 
 export default function CommunityPrayerWallScreen({ navigation }: Props) {
+  const { user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'church' | 'personal'>('church');
+  const [prayerSearchQuery, setPrayerSearchQuery] = useState('');
   const [prayerTitle, setPrayerTitle] = useState('');
   const [prayerContent, setPrayerContent] = useState('');
   const [churchPrayers, setChurchPrayers] = useState<Prayer[]>([]);
@@ -34,26 +43,12 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const currentUserId = authUser?.id || authUser?._id || '';
+  const currentUserName = authUser?.name || 'You';
 
   useEffect(() => {
-    loadUserIdAndData();
+    loadAllData();
   }, []);
-
-  const loadUserIdAndData = async () => {
-    try {
-      const userDataString = await AsyncStorage.getItem('user');
-      if (userDataString) {
-        const userData = JSON.parse(userDataString);
-        const userId = userData._id || userData.id;
-        setCurrentUserId(userId);
-      }
-    } catch (error) {
-      console.error('Error loading user ID:', error);
-    }
-    
-    await loadAllData();
-  };
 
   const loadAllData = async () => {
     setLoading(true);
@@ -121,9 +116,78 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
 
   const togglingPrayers = useRef(new Set<string>()).current;
 
-  const handleOpenComments = (prayerId: string) => {
-    // TODO: navigate to comments screen or open comments modal
-    console.log('Open comments for prayer:', prayerId);
+  // ── Comments state ──
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [commentsPrayerId, setCommentsPrayerId] = useState('');
+  const [comments, setComments] = useState<PrayerComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
+  const commentInputRef = useRef<TextInput>(null);
+
+  const handleOpenComments = useCallback(async (prayerId: string) => {
+    setCommentsPrayerId(prayerId);
+    setCommentsVisible(true);
+    setCommentsLoading(true);
+    try {
+      const data = await prayerAPI.getComments(prayerId);
+      setComments(data);
+    } catch (error: any) {
+      console.error('Error loading comments:', error);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, []);
+
+  const handleSendComment = async () => {
+    const trimmed = commentText.trim();
+    if (!trimmed || sendingComment) return;
+    setSendingComment(true);
+    try {
+      const newComment = await prayerAPI.addComment(commentsPrayerId, trimmed);
+      setComments(prev => [...prev, newComment]);
+      setCommentText('');
+      Keyboard.dismiss();
+      // Update comment count on the prayer card
+      setChurchPrayers(prev => prev.map(p =>
+        p._id === commentsPrayerId
+          ? { ...p, commentCount: (p.commentCount || 0) + 1 }
+          : p
+      ));
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to post comment.');
+    } finally {
+      setSendingComment(false);
+    }
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    Alert.alert('Delete Comment', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await prayerAPI.deleteComment(commentId);
+            setComments(prev => prev.filter(c => c._id !== commentId));
+            setChurchPrayers(prev => prev.map(p =>
+              p._id === commentsPrayerId
+                ? { ...p, commentCount: Math.max(0, (p.commentCount || 1) - 1) }
+                : p
+            ));
+          } catch {
+            Alert.alert('Error', 'Failed to delete comment.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const closeComments = () => {
+    setCommentsVisible(false);
+    setCommentsPrayerId('');
+    setComments([]);
+    setCommentText('');
   };
 
   const handlePrayToggle = async (prayerId: string) => {
@@ -579,6 +643,28 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
+      {/* Search bar for church prayers */}
+      {activeTab === 'church' && (
+        <View className="mx-5 mt-3">
+          <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2.5">
+            <Ionicons name="search" size={18} color="#9CA3AF" />
+            <TextInput
+              value={prayerSearchQuery}
+              onChangeText={setPrayerSearchQuery}
+              placeholder="Search prayers..."
+              placeholderTextColor="#9CA3AF"
+              className="flex-1 ml-2 text-sm"
+              style={{ color: PRIMARY, padding: 0 }}
+            />
+            {prayerSearchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setPrayerSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -593,8 +679,17 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
           }
         >
           {activeTab === 'church' ? (
-            churchPrayers.length > 0 ? (
-              churchPrayers.map((prayer) => renderChurchPrayerCard(prayer))
+            (() => {
+              const q = prayerSearchQuery.toLowerCase().trim();
+              const filtered = q
+                ? churchPrayers.filter(p =>
+                    p.title.toLowerCase().includes(q) ||
+                    p.description.toLowerCase().includes(q) ||
+                    (p.author?.name || '').toLowerCase().includes(q)
+                  )
+                : churchPrayers;
+              return filtered.length > 0 ? (
+              filtered.map((prayer) => renderChurchPrayerCard(prayer))
             ) : (
               <View className="bg-gray-50 rounded-3xl p-8 items-center border border-gray-100">
                 <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center mb-4">
@@ -604,15 +699,164 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
                   No prayers yet
                 </Text>
                 <Text className="text-gray-400 text-sm text-center">
-                  Be the first to share a prayer with the community
+                  {q ? 'No prayers match your search' : 'Be the first to share a prayer with the community'}
                 </Text>
               </View>
-            )
+            );
+            })()
           ) : (
             renderPersonalTab()
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Comments Modal ── */}
+      <Modal
+        visible={commentsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeComments}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
+          activeOpacity={1}
+          onPress={closeComments}
+        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            maxHeight: SCREEN_HEIGHT * 0.7,
+            backgroundColor: '#fff',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Handle bar */}
+          <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 4 }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB' }} />
+          </View>
+
+          {/* Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: PRIMARY }}>Comments</Text>
+            <TouchableOpacity onPress={closeComments} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="close" size={18} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Comments list */}
+          {commentsLoading ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={PRIMARY} />
+            </View>
+          ) : comments.length === 0 ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <Ionicons name="chatbubble-outline" size={36} color="#D1D5DB" />
+              <Text style={{ color: '#9CA3AF', fontSize: 14, marginTop: 8 }}>No comments yet</Text>
+              <Text style={{ color: '#D1D5DB', fontSize: 12, marginTop: 2 }}>Be the first to comment</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={comments}
+              keyExtractor={item => item._id}
+              style={{ maxHeight: SCREEN_HEIGHT * 0.4 }}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 12 }}
+              renderItem={({ item }) => {
+                // userId can be a string or populated object { _id, name, email }
+                const userIdStr = typeof item.userId === 'object' ? item.userId._id : item.userId;
+                const populatedName = typeof item.userId === 'object' ? item.userId.name : undefined;
+                const isOwn = userIdStr === currentUserId;
+                const displayName = item.author?.name || populatedName || (isOwn ? currentUserName : 'Anonymous');
+                return (
+                  <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                    {/* Avatar */}
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isOwn ? PRIMARY : '#E5E7EB', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: isOwn ? '#fff' : '#6B7280' }}>
+                        {displayName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: PRIMARY }}>
+                          {isOwn ? 'You' : displayName}
+                        </Text>
+                        {isOwn && (
+                          <TouchableOpacity onPress={() => handleDeleteComment(item._id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 14, color: '#374151', marginTop: 2, lineHeight: 20 }}>
+                        {item.comment}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+                        {getTimeAgo(item.createdAt)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }}
+            />
+          )}
+
+          {/* Comment input */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            paddingHorizontal: 16,
+            paddingTop: 10,
+            paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+            borderTopWidth: 1,
+            borderTopColor: '#F3F4F6',
+            backgroundColor: '#fff',
+          }}>
+            <TextInput
+              ref={commentInputRef}
+              value={commentText}
+              onChangeText={setCommentText}
+              placeholder="Write a comment..."
+              placeholderTextColor="#9CA3AF"
+              multiline
+              maxLength={500}
+              style={{
+                flex: 1,
+                backgroundColor: '#F3F4F6',
+                borderRadius: 20,
+                paddingHorizontal: 16,
+                paddingTop: Platform.OS === 'ios' ? 10 : 8,
+                paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+                fontSize: 14,
+                color: PRIMARY,
+                maxHeight: 80,
+              }}
+            />
+            <TouchableOpacity
+              onPress={handleSendComment}
+              disabled={!commentText.trim() || sendingComment}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: commentText.trim() ? PRIMARY : '#D1D5DB',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 8,
+              }}
+            >
+              {sendingComment ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send" size={16} color="#fff" style={{ marginLeft: 2 }} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }

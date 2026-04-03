@@ -73,13 +73,18 @@ export default function LoginScreen({ navigation }: Props) {
       
       console.log('✅ Login response:', response);
       
-      const token = response?.data?.token;
-      const user = response?.data?.user;
+      const token = response?.data?.token || response?.token;
+      const user = response?.data?.user || response?.user;
       
       if (token) {
         await AsyncStorage.setItem('@app:token', token);
         await AsyncStorage.setItem('@app:isAuthenticated', 'true');
-        
+
+        const refreshToken = response?.data?.refreshToken || response?.refreshToken;
+        if (refreshToken) {
+          await AsyncStorage.setItem('@app:refreshToken', refreshToken);
+        }
+
         if (user) {
           await AsyncStorage.setItem('@app:userData', JSON.stringify(user));
         }

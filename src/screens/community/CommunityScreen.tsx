@@ -261,13 +261,6 @@ const CommunityScreen = ({ navigation }: any) => {
           {myGroups.length > 0 ? `${myGroups.length} group${myGroups.length !== 1 ? 's' : ''} joined` : 'Find your community'}
         </Text>
       </View>
-      <TouchableOpacity
-        onPress={() => navigation.navigate('CreateNewGroup')}
-        style={styles.headerAddBtn}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="add" size={20} color="#FFF" />
-      </TouchableOpacity>
     </View>
   );
 
@@ -440,15 +433,7 @@ const CommunityScreen = ({ navigation }: any) => {
               <Ionicons name="people-outline" size={40} color="rgba(4,7,37,0.2)" />
             </View>
             <Text style={styles.fullEmptyTitle}>No Groups Yet</Text>
-            <Text style={styles.fullEmptySub}>Be the first to create a community group</Text>
-            <TouchableOpacity
-              style={styles.createBtn}
-              onPress={() => navigation.navigate('CreateNewGroup')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={18} color="#FFF" style={{ marginRight: 6 }} />
-              <Text style={styles.createBtnText}>Create Group</Text>
-            </TouchableOpacity>
+            <Text style={styles.fullEmptySub}>Groups are created by admins. Check back soon!</Text>
           </View>
         )}
       </ScrollView>
