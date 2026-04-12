@@ -45,13 +45,13 @@ const CartScreen: React.FC<Props> = ({ navigation }) => {
       if (paid) {
         Alert.alert(
           'Payment Successful',
-          `Your order #${order._id.slice(-6).toUpperCase()} has been paid. Total: € ${totalPrice.toFixed(2)}`,
+          `Your order #${(order._id || '').slice(-6).toUpperCase() || 'ORDER'} has been paid. Total: € ${totalPrice.toFixed(2)}`,
           [{ text: 'OK', onPress: () => { clearCart(); navigation.navigate('ShopHome'); } }]
         );
       } else {
         Alert.alert(
           'Order Saved',
-          `Your order #${order._id.slice(-6).toUpperCase()} has been created. You can complete payment later.`,
+          `Your order #${(order._id || '').slice(-6).toUpperCase() || 'ORDER'} has been created. You can complete payment later.`,
           [{ text: 'OK', onPress: () => { clearCart(); navigation.navigate('ShopHome'); } }]
         );
       }

@@ -51,7 +51,7 @@ const ProductCard = ({
     {/* Image */}
     <View style={{ position: 'relative' }}>
       <Image
-        source={{ uri: product.image }}
+        source={{ uri: typeof product.image === 'string' ? product.image : '' }}
         style={{ width: '100%', height: CARD_WIDTH * 1.05, backgroundColor: '#F1F5F9' }}
         resizeMode="cover"
       />
@@ -117,7 +117,7 @@ const ProductCard = ({
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
         <Text style={{ color: PRIMARY, fontSize: 16, fontWeight: '800' }}>
-          ${product.price.toFixed(2)}
+          ${(product.price || 0).toFixed(2)}
         </Text>
         <TouchableOpacity
           style={{
@@ -191,9 +191,9 @@ const ShopScreen: React.FC<Props> = ({ showBanner = true, navigation }) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (
-          !product.name.toLowerCase().includes(q) &&
-          !product.description.toLowerCase().includes(q) &&
-          !product.category.toLowerCase().includes(q)
+          !(product.name || '').toLowerCase().includes(q) &&
+          !(product.description || '').toLowerCase().includes(q) &&
+          !(product.category || '').toLowerCase().includes(q)
         )
           return false;
       }

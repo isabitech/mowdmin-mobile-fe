@@ -39,7 +39,7 @@ const CartItemComponent: React.FC<Props> = ({ item, onUpdateQuantity, onRemove }
       {/* Product Image */}
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: product.image }}
+          source={{ uri: typeof product.image === 'string' ? product.image : '' }}
           style={styles.image}
           resizeMode="cover"
         />
@@ -53,7 +53,7 @@ const CartItemComponent: React.FC<Props> = ({ item, onUpdateQuantity, onRemove }
       <View style={styles.details}>
         <View style={styles.headerRow}>
           <Text style={styles.title} numberOfLines={2}>
-            {product.title}
+            {product.title || product.name || 'Untitled'}
           </Text>
           <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
             <CloseIcon size={18} color="#94A3B8" />
@@ -74,7 +74,7 @@ const CartItemComponent: React.FC<Props> = ({ item, onUpdateQuantity, onRemove }
         {/* Price and Quantity */}
         <View style={styles.bottomRow}>
           <Text style={styles.price}>
-            {product.currency} {product.price}
+            {product.currency || '$'} {(product.price || 0).toFixed(2)}
           </Text>
           
           {/* Quantity Controls */}

@@ -69,21 +69,43 @@ const categoryImages: Record<string, string> = {
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400';
 
-const getImageForProduct = (product: BackendProduct): string => {
-  if (product.image) return product.image;
+const getImageForProduct = (product: any): string => {
+  if (product.imageUrl && typeof product.imageUrl === 'string') return product.imageUrl;
+  if (product.image && typeof product.image === 'string') return product.image;
   if (product.images && product.images.length > 0) return product.images[0];
   return categoryImages[product.category || ''] || DEFAULT_IMAGE;
 };
 
-const transformProduct = (raw: BackendProduct): Product => ({
+const ensureString = (val: any): string => {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object' && val.url) return val.url;
+  if (typeof val === 'object' && val.uri) return val.uri;
+  return String(val);
+};
+
+const extractCategory = (cat: any): string => {
+  if (!cat) return 'General';
+  if (typeof cat === 'string') {
+    // If it looks like a MongoDB ObjectId (24 hex chars), it's not populated
+    if (/^[0-9a-fA-F]{24}$/.test(cat)) return 'General';
+    return cat;
+  }
+  if (typeof cat === 'object') {
+    return cat.name || cat.title || 'General';
+  }
+  return 'General';
+};
+
+const transformProduct = (raw: any): Product => ({
   id: raw._id,
-  name: raw.name || 'Untitled Product',
-  description: raw.description || '',
+  name: ensureString(raw.name) || 'Untitled Product',
+  description: ensureString(raw.description) || '',
   price: extractPrice(raw.price),
-  category: raw.category || 'General',
+  category: extractCategory(raw.category),
   stock: raw.stock ?? 0,
-  image: getImageForProduct(raw),
-  images: raw.images || [getImageForProduct(raw)],
+  image: getImageForProduct(raw) || DEFAULT_IMAGE,
+  images: (raw.images || []).map(ensureString).filter(Boolean).concat(getImageForProduct(raw) || DEFAULT_IMAGE),
   inStock: (raw.stock ?? 0) > 0,
   createdAt: raw.createdAt,
   updatedAt: raw.updatedAt,

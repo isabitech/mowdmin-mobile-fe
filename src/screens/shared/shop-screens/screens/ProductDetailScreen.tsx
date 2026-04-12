@@ -175,7 +175,7 @@ const ProductDetailScreen: React.FC = () => {
           style={{ width: width, height: width * 0.8 }}
         >
           <Image
-            source={{ uri: product.image }}
+            source={{ uri: typeof product.image === 'string' ? product.image : '' }}
             style={{ width: '100%', height: '100%' }}
             contentFit="cover"
             cachePolicy="disk"

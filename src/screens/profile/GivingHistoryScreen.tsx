@@ -171,7 +171,7 @@ export default function GivingHistoryScreen() {
 
   const totalGiving = transactions
     .filter(t => t.status === 'completed')
-    .reduce((sum, t) => sum + parseFloat(t.amount.replace('$', '').replace(',', '')), 0);
+    .reduce((sum, t) => sum + parseFloat((t.amount || '0').replace('$', '').replace(',', '')), 0);
 
   const stats = [
     { label: 'This Year', value: `$${totalGiving.toLocaleString()}`, change: '', positive: true },
@@ -282,7 +282,7 @@ export default function GivingHistoryScreen() {
                   </Text>
                 </View>
                 <Text className="text-white text-5xl font-bold">${Math.floor(totalGiving).toLocaleString()}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18 }}>.{(totalGiving % 1).toFixed(2).slice(2)}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18 }}>.{((totalGiving || 0) % 1).toFixed(2).slice(2)}</Text>
               </View>
 
               {/* Partner Badge */}

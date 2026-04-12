@@ -102,22 +102,23 @@ export default function EditProfileScreen() {
 
     try {
       setSaving(true);
+      // Strip non-digit chars from phone (backend validates digits only)
+      const cleanPhone = phone.trim().replace(/[^\d+]/g, '');
       await profileAPI.updateDetailedProfile({
-        name: fullName.trim(),
         displayName: fullName.trim(),
         bio: bio.trim(),
-        phoneNumber: phone.trim(),
+        ...(cleanPhone ? { phoneNumber: cleanPhone } : {}),
         location: location === 'Others' ? customLocation.trim() : location.trim(),
-        ministryRole: ministryRole,
       });
       Alert.alert('Success', 'Profile updated successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error: any) {
       console.error('[EditProfile] Error saving profile:', error.message);
+      console.error('[EditProfile] Response:', JSON.stringify(error.response?.data));
       Alert.alert(
         'Error',
-        error.response?.data?.message || 'Failed to update profile. Please try again.'
+        error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Failed to update profile. Please try again.'
       );
     } finally {
       setSaving(false);

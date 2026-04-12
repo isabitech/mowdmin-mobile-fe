@@ -53,7 +53,7 @@ const ProductCard: React.FC<Props> = ({ product, onPress, onAddToCart }) => {
       {/* Image Container */}
       <View className="relative h-40 bg-slate-100">
         <Image
-          source={{ uri: product.image }}
+          source={{ uri: typeof product.image === 'string' ? product.image : '' }}
           className="w-full h-full"
           resizeMode="cover"
         />
@@ -102,7 +102,7 @@ const ProductCard: React.FC<Props> = ({ product, onPress, onAddToCart }) => {
         {/* Price and Add Button Row */}
         <View className="flex-row justify-between items-center">
           <Text className="text-base font-bold text-red-600">
-            {product.currency} {product.price}
+            {product.currency || '$'} {(product.price || 0).toFixed(2)}
           </Text>
           <TouchableOpacity
             className="flex-row items-center bg-[#040725] px-3 py-1.5 rounded-md gap-1"

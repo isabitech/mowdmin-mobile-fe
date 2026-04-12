@@ -406,7 +406,7 @@ const onRefresh = useCallback(async () => {
               shadowOpacity: 0.06,
               shadowRadius: 16,
             },
-            android: { elevation: 3 },
+            android: { elevation: 2 },
           }),
         }}
         onPress={() => navigation?.navigate('Event', { eventId: event.id })}
@@ -901,7 +901,7 @@ const onRefresh = useCallback(async () => {
         </View>
 
         {/* ── Upcoming Events ────────────────────────────────────────────── */}
-        <View style={{ marginBottom: 24 }}>
+        <View style={{ marginBottom: 24, paddingBottom: 8 }}>
           <View
             style={{
               flexDirection: 'row',

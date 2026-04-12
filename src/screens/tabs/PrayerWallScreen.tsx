@@ -777,7 +777,7 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
                     {/* Avatar */}
                     <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isOwn ? PRIMARY : '#E5E7EB', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
                       <Text style={{ fontSize: 14, fontWeight: '700', color: isOwn ? '#fff' : '#6B7280' }}>
-                        {displayName.charAt(0).toUpperCase()}
+                        {(displayName || '?').charAt(0).toUpperCase()}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>

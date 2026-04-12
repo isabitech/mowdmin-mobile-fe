@@ -172,7 +172,7 @@ const CommunityScreen = ({ navigation }: any) => {
           </View>
         )}
         {group.avatar || group.image ? (
-          <Image source={{ uri: group.avatar || group.image }} style={styles.myGroupAvatar} />
+          <Image source={{ uri: String(group.avatar || group.image || '') }} style={styles.myGroupAvatar} />
         ) : (
           <LinearGradient colors={colors} style={styles.myGroupAvatar}>
             <Text style={styles.myGroupInitials}>{initials}</Text>
@@ -204,7 +204,7 @@ const CommunityScreen = ({ navigation }: any) => {
           {/* Left: Avatar */}
           <View style={{ marginRight: 14 }}>
             {group.image || group.avatar ? (
-              <Image source={{ uri: group.image || group.avatar }} style={styles.discoverAvatar} />
+              <Image source={{ uri: String(group.image || group.avatar || '') }} style={styles.discoverAvatar} />
             ) : (
               <LinearGradient colors={colors} style={styles.discoverAvatar}>
                 <Text style={styles.discoverInitials}>{initials}</Text>

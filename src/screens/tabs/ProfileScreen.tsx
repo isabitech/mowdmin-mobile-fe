@@ -302,7 +302,7 @@ const ProfileScreen = () => {
               ) : (
                 <View className="w-full h-full justify-center items-center bg-[#040725]/10">
                   <Text className="text-3xl font-bold" style={{ color: PRIMARY_COLOR }}>
-                    {displayName.charAt(0).toUpperCase()}
+                    {(displayName || '?').charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}

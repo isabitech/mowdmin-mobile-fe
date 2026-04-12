@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(find \"c:\\\\Users\\\\Untitled Dev\\\\Desktop\\\\Projects\\\\ReactNative\\\\iSabiTech\\\\mowdmin-mobile-fe\\\\src\\\\screens\\\\\" -type f -name \"*.js\" -o -name \"*.jsx\" -o -name \"*.ts\" -o -name \"*.tsx\" 2>/dev/null | head -50)"
     ]
   }
 }

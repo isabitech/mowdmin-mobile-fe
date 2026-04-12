@@ -479,7 +479,7 @@ const BibleStoriesScreen = ({ navigation, route }: Props) => {
                   {selectedStory.media.map((item, idx) => (
                     <Image
                       key={idx}
-                      source={{ uri: item.url }}
+                      source={{ uri: typeof item.url === 'string' ? item.url : '' }}
                       style={{ width: 200, height: 140, borderRadius: 14 }}
                       resizeMode="cover"
                     />
