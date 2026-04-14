@@ -23,6 +23,7 @@ export type RootStackParamList = {
   GroupChat: { groupId: string; groupName?: string; groupImage?: string };
   ChangePassword: undefined;
   Membership: undefined;
+  VideoPlayer: { videoUrl: string; title: string; author?: string };
 };
 
 export type ShopStackParamList = {

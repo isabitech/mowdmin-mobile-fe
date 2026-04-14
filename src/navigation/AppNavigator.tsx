@@ -26,6 +26,7 @@ import CreateNewGroupScreen from '../screens/community/CreateNewGroupScreen';
 import GroupChatScreen from '../screens/community/GroupChatScreen';
 import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
 import MembershipScreen from '../screens/profile/MembershipScreen';
+import VideoPlayerScreen from '../screens/shared/VideoPlayerScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -80,6 +81,7 @@ export default function AppNavigator() {
         <Stack.Screen name="GroupChat" component={GroupChatScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
         <Stack.Screen name="Membership" component={MembershipScreen} />
+        <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
       </Stack.Navigator>
   );
 }

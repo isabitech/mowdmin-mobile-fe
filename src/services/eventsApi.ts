@@ -25,6 +25,64 @@ export interface EventRegistration {
   updatedAt?: string;
 }
 
+// Helper function to get event image based on content
+const getEventImage = (event: any): string => {
+  const title = (event.title || '').toLowerCase();
+  const description = (event.description || '').toLowerCase();
+  const type = (event.type || event.tag || '').toLowerCase();
+  
+  // Combine all text to search for keywords
+  const searchText = `${title} ${description} ${type}`;
+  
+  // Map keywords to local images (using exact filenames from assets/images/events/)
+  if (searchText.includes('lord supper') || searchText.includes('communion') || searchText.includes('supper')) {
+    return "https://mowdmin.vercel.app/static/media/supper.184705300ad542064f87.jpg"
+  }
+  
+  if (searchText.includes('baptism') || searchText.includes('water baptism')) {
+    return "https://mowdmin.vercel.app/static/media/baptism.94d65a6bb04d05266818.jpg"
+  }
+  
+  if (searchText.includes('holy spirit convention') || searchText.includes('convention')) {
+    return "https://mowdmin.vercel.app/static/media/conference.a0f2d2c92cef86f5fbc0.jpg"
+  }
+  
+  if (searchText.includes('evangelism') || searchText.includes('power') || searchText.includes('open-air') || searchText.includes('open air')) {
+    // Use crusade image as fallback for evangelism since evangelism.jpg doesn't exist
+    return "https://mowdmin.vercel.app/static/media/crusade.2e7365c491b34512df3e.jpg";
+  }
+  
+  if (searchText.includes('seminar') || searchText.includes('workshop') || searchText.includes('dayspring')) {
+    // Use conference image as fallback for seminar since seminar.jpg doesn't exist
+    return "https://mowdmin.vercel.app/static/media/conference.a0f2d2c92cef86f5fbc0.jpg";
+  }
+  
+  if (searchText.includes('truth') || searchText.includes('voice') ) {
+    return "https://mowdmin.vercel.app/static/media/conference.a0f2d2c92cef86f5fbc0.jpg";
+  }
+  
+  if (searchText.includes('symposium')) {
+    return "https://mowdmin.vercel.app/static/media/sympossium.cb3f8cb72c9aa40afb65.jpg"
+  }
+  
+  if (searchText.includes('concert') || searchText.includes('music') || searchText.includes('gospel music') || searchText.includes('people')) {
+    return "https://mowdmin.vercel.app/static/media/concertImg.5335e56293c0e2327c44.jpg";
+  }
+  
+  if (searchText.includes('crusade')) {
+    return "https://mowdmin.vercel.app/static/media/crusade.2e7365c491b34512df3e.jpg"
+  }
+  
+  // If backend provides an image URL, use it
+  if (event.image && event.image.trim()) {
+    return event.image;
+  }
+  
+  // Ultimate fallback - use Unsplash image
+  return 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400';
+  // return '../assets/images/events/events-placeholder.png';
+};
+
 // Helper: extract a string ID from a value that could be a string, ObjectId, or populated object
 const extractId = (value: any): string => {
   if (!value) return '';
@@ -44,7 +102,7 @@ const transformEvent = (backendEvent: any): Event => {
     date: backendEvent.date,
     time: backendEvent.time || '12:00 PM',
     description: backendEvent.description || 'No description available',
-    image: backendEvent.image || 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400',
+    image: getEventImage(backendEvent),
     tag: backendEvent.type || backendEvent.tag || 'EVENT',
     hasLiveStream: backendEvent.hasLiveStream || false,
     hasLocation: !!backendEvent.location,

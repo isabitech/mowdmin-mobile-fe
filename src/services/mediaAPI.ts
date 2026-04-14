@@ -16,6 +16,11 @@ export interface MediaItemAPI {
   category_id: CategoryAPI;
   thumbnail: string;
   isLive: boolean;
+  type?: string; // e.g., 'video', 'audio'
+  media_url?: string; // The actual media file URL
+  author?: string;
+  duration?: string;
+  is_downloadable?: boolean;
   createdAt: string;
   updatedAt: string;
   __v?: number;

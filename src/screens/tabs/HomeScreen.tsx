@@ -13,17 +13,21 @@ import {
   Platform,
   RefreshControl,
   Share,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import NotificationIconWithBadge from '../../components/NotificationIconWithBadge';
+import HomeHero from '../../components/HomeHero';
 import { profileAPI, Profile } from '../../services/profileApi';
 import { eventsAPI, Event as APIEvent } from '../../services/eventsApi';
-import { bibleVersesAPI, DailyVerse as APIDailyVerse } from '../../services/bibleVersesApi';
+import { bibleVersesAPI } from '../../services/bibleVersesApi';
 import mediaAPI, { MediaItemAPI } from '../../services/mediaAPI';
+const crusadeImagePlaceholder = require('../../assets/images/events/crusade.jpg');
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +37,7 @@ const ACCENT = '#3B82F6';
 // Storage keys
 const VERSE_STORAGE_KEY = '@daily_verse';
 const VERSE_DATE_KEY = '@daily_verse_date';
+const HOME_TOUR_STORAGE_PREFIX = '@app:homeTourSeen:';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +45,7 @@ interface DailyVerse {
   text: string;
   reference: string;
   version?: string;
+  source?: 'api' | 'cache' | 'fallback'; // Track where the verse came from
 }
 
 interface VideoItem {
@@ -49,7 +55,49 @@ interface VideoItem {
   thumbnail: string;
   isLive?: boolean;
   views?: string;
+  media_url?: string;
+  type?: string;
+  author?: string;
+  duration?: string;
 }
+
+interface TourStep {
+  key: 'hero' | 'quickActions' | 'bibleCard' | 'dailyVerse' | 'events';
+  title: string;
+  description: string;
+}
+
+const TOUR_STEPS: TourStep[] = [
+  {
+    key: 'hero',
+    title: 'Featured Media',
+    description:
+      'Swipe through featured messages here, then use the top icons for your profile and notifications.',
+  },
+  {
+    key: 'quickActions',
+    title: 'Quick Actions',
+    description:
+      'These shortcuts take you straight to Shop, Donate, Bible Stories, and Community in one tap.',
+  },
+  {
+    key: 'bibleCard',
+    title: 'Read Bible',
+    description: 'Jump into the Bible from here and continue with today’s reading focus.',
+  },
+  {
+    key: 'dailyVerse',
+    title: 'Verse Of The Day',
+    description:
+      'Your daily scripture shows here, with a quick share action when you want to pass it on.',
+  },
+  {
+    key: 'events',
+    title: 'Upcoming Events',
+    description:
+      'Check upcoming programs here. Tap a card for details or use See All for the full list.',
+  },
+];
 
 // ─── Fallback data ────────────────────────────────────────────────────────────
 
@@ -107,18 +155,42 @@ const useDailyVerse = () => {
   const fetchVerse = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
+      console.log('\n=== DAILY VERSE FETCH START ===');
+      console.log('[HomeScreen] Fetching daily verse, forceRefresh:', forceRefresh);
+
+      // Check what's currently cached
+      const cachedVerse = await AsyncStorage.getItem(VERSE_STORAGE_KEY);
+      const cachedDate = await AsyncStorage.getItem(VERSE_DATE_KEY);
+      console.log('[HomeScreen] Current cache date:', cachedDate);
+      if (cachedVerse) {
+        console.log('[HomeScreen] Current cached verse:', JSON.parse(cachedVerse));
+      }
 
       if (!forceRefresh) {
         // Check cache
-        const cachedDate = await AsyncStorage.getItem(VERSE_DATE_KEY);
         const todayDate = getTodayDateString();
+        console.log('[HomeScreen] Cache check - cachedDate:', cachedDate, 'todayDate:', todayDate);
 
         if (cachedDate === todayDate) {
-          const cachedVerse = await AsyncStorage.getItem(VERSE_STORAGE_KEY);
           if (cachedVerse) {
             const parsed = JSON.parse(cachedVerse);
-            // Validate it's from our backend (has reference field)
-            if (parsed.reference) {
+            
+            // Check if cached verse looks like Lorem Ipsum or placeholder
+            const isPlaceholder = parsed.text && (
+              parsed.text.includes('Lorem') || 
+              parsed.text.includes('ipsum') || 
+              parsed.text.includes('Cinis') || 
+              parsed.text.includes('similique') ||
+              parsed.text.includes('consectetur') ||
+              parsed.text.includes('adipiscing')
+            );
+            
+            if (isPlaceholder) {
+              console.log('[HomeScreen] ⚠️ Cached verse appears to be Lorem Ipsum placeholder, forcing refresh');
+              // Don't use cached placeholder, force API call
+            } else if (parsed.reference) {
+              console.log('[HomeScreen] ✅ Using CACHED verse:', parsed);
+              parsed.source = 'cache';
               setVerse(parsed);
               setLoading(false);
               return;
@@ -127,33 +199,71 @@ const useDailyVerse = () => {
         }
       }
 
-      // Clear old cache
+      // Clear old cache to force fresh data
+      console.log('[HomeScreen] 🗑️ Clearing cache to force fresh API call');
       await AsyncStorage.multiRemove([VERSE_STORAGE_KEY, VERSE_DATE_KEY]);
 
       // Fetch from backend API
+      console.log('[HomeScreen] 🌐 Fetching from API...');
       const apiVerse = await bibleVersesAPI.getDailyVerse();
+      console.log('[HomeScreen] 📥 Raw API response:', JSON.stringify(apiVerse, null, 2));
+      
+      // Check if API response looks like Lorem Ipsum
+      const isApiPlaceholder = apiVerse.text && (
+        apiVerse.text.includes('Lorem') || 
+        apiVerse.text.includes('ipsum') || 
+        apiVerse.text.includes('Cinis') || 
+        apiVerse.text.includes('similique') ||
+        apiVerse.text.includes('consectetur') ||
+        apiVerse.text.includes('adipiscing')
+      );
+      
+      if (isApiPlaceholder) {
+        console.log('[HomeScreen] ⚠️ API returned Lorem Ipsum placeholder text!');
+        console.log('[HomeScreen] Problematic text:', apiVerse.text);
+        throw new Error('API returned placeholder text instead of real Bible verse');
+      }
+      
       const transformedVerse: DailyVerse = {
         text: apiVerse.text,
         reference: apiVerse.passage,
         version: apiVerse.version,
+        source: 'api'
       };
+
+      console.log('[HomeScreen] 🔄 Transformed verse:', JSON.stringify(transformedVerse, null, 2));
 
       // Cache it
       await AsyncStorage.setItem(VERSE_STORAGE_KEY, JSON.stringify(transformedVerse));
       await AsyncStorage.setItem(VERSE_DATE_KEY, getTodayDateString());
       setVerse(transformedVerse);
+      console.log('[HomeScreen] ✅ Daily verse from API fetched and cached successfully');
     } catch (error) {
-      console.log('[HomeScreen] Daily verse fetch error:', error);
+      console.log('[HomeScreen] ❌ Daily verse fetch error:', error);
+      console.log('[HomeScreen] Error details:', error?.response?.data || error?.message);
+      
       try {
         const cachedVerse = await AsyncStorage.getItem(VERSE_STORAGE_KEY);
         if (cachedVerse) {
-          setVerse(JSON.parse(cachedVerse));
+          const parsed = JSON.parse(cachedVerse);
+          console.log('[HomeScreen] 💾 Using cached verse after error:', parsed);
+          parsed.source = 'cache';
+          setVerse(parsed);
           return;
         }
-      } catch {}
-      setVerse(fallbackVerses[getDayOfYear() % fallbackVerses.length]);
+      } catch (cacheError) {
+        console.log('[HomeScreen] Cache read error:', cacheError);
+      }
+      
+      const fallbackVerse = { 
+        ...fallbackVerses[getDayOfYear() % fallbackVerses.length],
+        source: 'fallback' as const
+      };
+      console.log('[HomeScreen] 🔙 Using FALLBACK verse:', fallbackVerse);
+      setVerse(fallbackVerse);
     } finally {
       setLoading(false);
+      console.log('=== DAILY VERSE FETCH END ===\n');
     }
   }, []);
 
@@ -224,9 +334,11 @@ const useEvents = () => {
 
 const useMedia = () => {
   const [mediaItems, setMediaItems] = useState<VideoItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchMedia = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await mediaAPI.getAllMedia();
       if (response.status === 'success' && response.data?.length > 0) {
         const items: VideoItem[] = response.data.slice(0, 5).map((m: MediaItemAPI) => ({
@@ -235,15 +347,21 @@ const useMedia = () => {
           category: m.category_id?.name || 'Media',
           thumbnail: m.thumbnail || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=1000&fit=crop',
           isLive: m.isLive,
+          media_url: m.media_url,
+          type: m.type,
+          author: m.author,
+          duration: m.duration,
         }));
         setMediaItems(items);
       }
     } catch {
       // Silently fail — fallback videos will be used
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  return { mediaItems, fetchMedia };
+  return { mediaItems, loading, fetchMedia };
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -253,11 +371,19 @@ const HomeScreen = ({ navigation }: any) => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const videoFlatListRef = useRef<FlatList>(null);
+  
+  // Inline video player state
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [currentMedia, setCurrentMedia] = useState<VideoItem | null>(null);
+  const player = useVideoPlayer(currentMedia?.media_url || '', player => {
+    player.loop = false;
+    player.muted = false;
+  });
 
   const { verse, loading: verseLoading, fetchVerse } = useDailyVerse();
   const { profile, loading: profileLoading, fetchProfile } = useProfile();
   const { events, loading: eventsLoading, fetchEvents } = useEvents();
-  const { mediaItems, fetchMedia } = useMedia();
+  const { mediaItems, loading: mediaLoading, fetchMedia } = useMedia();
 
   useFocusEffect(
     useCallback(() => {
@@ -273,6 +399,55 @@ const onRefresh = useCallback(async () => {
   setRefreshing(false);
 }, [fetchProfile, fetchEvents, fetchVerse, fetchMedia]);
 
+  // Handle video playback
+  const isYouTubeUrl = (url: string) => {
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
+  const getYouTubeVideoId = (url: string): string | null => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const handlePlayMedia = useCallback((item: VideoItem) => {
+    if (item.media_url) {
+      if (playingVideoId === item.id) {
+        // Stop playing if same video is clicked
+        setPlayingVideoId(null);
+        setCurrentMedia(null);
+        if (player) {
+          player.pause();
+        }
+      } else {
+        // Start playing new video
+        setPlayingVideoId(item.id);
+        setCurrentMedia(item);
+      }
+    } else {
+      Alert.alert('No Video', 'This media item does not have a video URL available.');
+    }
+  }, [playingVideoId, player]);
+
+  const handleFullscreen = useCallback((item: VideoItem) => {
+    // Navigate to a fullscreen video player screen
+    navigation?.navigate('FullscreenVideo', {
+      videoUrl: item.media_url,
+      title: item.title,
+      author: item.author || item.category,
+      isYouTube: isYouTubeUrl(item.media_url || '')
+    });
+  }, [navigation]);
+
+  const closeVideoModal = useCallback(() => {
+    // This function is no longer needed but keeping for compatibility
+    setPlayingVideoId(null);
+    setCurrentMedia(null);
+    if (player) {
+      player.pause();
+    }
+  }, [player]);
+
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
       setCurrentVideoIndex(viewableItems[0].index || 0);
@@ -284,109 +459,215 @@ const onRefresh = useCallback(async () => {
   }).current;
 
   const fallbackVideos: VideoItem[] = [
-    { id: '1', title: 'Revival Night: Hope in Christ', category: 'Rev. Emmanuel Adeyemi', thumbnail: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=1000&fit=crop', isLive: true, views: '4.5k' },
-    { id: '2', title: 'Praise Unplugged', category: 'Pastor Michael Adams', thumbnail: 'https://images.unsplash.com/photo-1508025690966-2a9a1957da31?w=800&h=1000&fit=crop', views: '2.3k' },
-    { id: '3', title: 'Word Alive Service', category: 'Rev. Emmanuel Adeyemi', thumbnail: 'https://images.unsplash.com/photo-1519834785169-98be25ec3f84?w=800&h=1000&fit=crop', views: '8.1k' },
+    { 
+      id: '2', 
+      title: 'Praise Unplugged', 
+      category: 'Pastor Michael Adams', 
+      thumbnail: 'https://images.unsplash.com/photo-1508025690966-2a9a1957da31?w=800&h=1000&fit=crop', 
+      views: '2.3k',
+      media_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+    },
   ];
-  const videos: VideoItem[] = mediaItems.length > 0 ? mediaItems : fallbackVideos;
+  // Determine what videos to show
+  const getVideosToShow = () => {
+    if (mediaLoading) {
+      return []; // Empty array will trigger loading state
+    }
+    return mediaItems.length > 0 ? mediaItems : fallbackVideos;
+  };
+  
+  const videos: VideoItem[] = getVideosToShow();
 
   // ─── Sub-renders ─────────────────────────────────────────────────────────────
 
-  const renderVideoItem = ({ item }: { item: VideoItem }) => (
-    <View style={{ width, height: 460 }}>
-      <Image
-        source={{ uri: item.thumbnail }}
-        style={{ width: '100%', height: '100%' }}
-        resizeMode="cover"
-      />
-      <LinearGradient
-        colors={['rgba(4,7,37,0.7)', 'transparent', 'rgba(4,7,37,0.95)']}
-        locations={[0, 0.3, 1]}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
+  const renderVideoItem = ({ item }: { item: VideoItem }) => {
+    const isPlaying = playingVideoId === item.id;
+    const isCurrentMediaItem = currentMedia?.id === item.id;
 
-      {/* Badge */}
-      {item.isLive ? (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 100,
-            left: 20,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: '#EF4444',
-            paddingHorizontal: 14,
-            paddingVertical: 6,
-            borderRadius: 20,
-            gap: 6,
+    return (
+      <View style={{ 
+        width, 
+        height: 460,
+        zIndex: isPlaying ? 1000 : 1,
+        elevation: isPlaying ? 1000 : 1,
+      }}>
+        {isPlaying && item.media_url && isCurrentMediaItem ? (
+          // Show video player when playing
+          <>
+            {isYouTubeUrl(item.media_url) ? (
+              <YoutubePlayer
+                height={460}
+                play={true}
+                videoId={getYouTubeVideoId(item.media_url) || ''}
+                onChangeState={(state) => {
+                  if (state === 'ended') {
+                    setPlayingVideoId(null);
+                    setCurrentMedia(null);
+                  }
+                }}
+                onError={(error) => {
+                  console.log('YouTube player error:', error);
+                  Alert.alert('Error', 'Failed to load YouTube video');
+                  setPlayingVideoId(null);
+                  setCurrentMedia(null);
+                }}
+              />
+            ) : (
+              <VideoView
+                style={{ 
+                  width: '100%', 
+                  height: '100%',
+                  zIndex: 1001,
+                }}
+                player={player}
+                fullscreenOptions={{ enabled: false }}
+                allowsPictureInPicture={false}
+              />
+            )}
+          </>
+        ) : (
+          // Show thumbnail when not playing
+          <Image
+            source={{ uri: item.thumbnail }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        )}
+
+        {/* Overlay gradient - show for both thumbnail and video */}
+        <LinearGradient
+          colors={['rgba(4,7,37,0.7)', 'transparent', 'rgba(4,7,37,0.95)']}
+          locations={[0, 0.3, 1]}
+          style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            zIndex: isPlaying ? 1002 : 2,
           }}
-        >
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFF' }} />
-          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>LIVE</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>{item.views}</Text>
-        </View>
-      ) : (
-        <View
+        />
+
+        {/* Badge */}
+        {item.isLive ? (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 100,
+              left: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#EF4444',
+              paddingHorizontal: 14,
+              paddingVertical: 6,
+              borderRadius: 20,
+              gap: 6,
+              zIndex: isPlaying ? 1003 : 3,
+            }}
+          >
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFF' }} />
+            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>LIVE</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>{item.views}</Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 100,
+              left: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: 'rgba(255,255,255,0.12)',
+              paddingHorizontal: 14,
+              paddingVertical: 6,
+              borderRadius: 20,
+              gap: 6,
+              zIndex: isPlaying ? 1003 : 3,
+            }}
+          >
+            <Ionicons name="eye-outline" size={13} color="#FFF" />
+            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '600' }}>{item.views}</Text>
+          </View>
+        )}
+
+        {/* Play/Pause Button */}
+        <TouchableOpacity
           style={{
             position: 'absolute',
-            bottom: 100,
-            left: 20,
-            flexDirection: 'row',
-            alignItems: 'center',
+            top: '42%',
+            alignSelf: 'center',
+            width: 68,
+            height: 68,
+            borderRadius: 34,
             backgroundColor: 'rgba(255,255,255,0.12)',
-            paddingHorizontal: 14,
-            paddingVertical: 6,
-            borderRadius: 20,
-            gap: 6,
+            borderWidth: 2,
+            borderColor: 'rgba(255,255,255,0.25)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: isPlaying ? 1004 : 4,
           }}
+          activeOpacity={0.7}
+          onPress={() => handlePlayMedia(item)}
         >
-          <Ionicons name="eye-outline" size={13} color="#FFF" />
-          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '600' }}>{item.views}</Text>
-        </View>
-      )}
+          <Ionicons 
+            name={isPlaying ? "pause" : "play"} 
+            size={28} 
+            color="#FFF" 
+            style={{ marginLeft: isPlaying ? 0 : 3 }} 
+          />
+        </TouchableOpacity>
 
-      {/* Play Button */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          top: '42%',
-          alignSelf: 'center',
-          width: 68,
-          height: 68,
-          borderRadius: 34,
-          backgroundColor: 'rgba(255,255,255,0.12)',
-          borderWidth: 2,
-          borderColor: 'rgba(255,255,255,0.25)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="play" size={28} color="#FFF" style={{ marginLeft: 3 }} />
-      </TouchableOpacity>
+        {/* Fullscreen Button - only show when video is playing */}
+        {isPlaying && (
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: 'rgba(255,255,255,0.12)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1005,
+            }}
+            activeOpacity={0.7}
+            onPress={() => handleFullscreen(item)}
+          >
+            <Ionicons name="expand" size={20} color="#FFF" />
+          </TouchableOpacity>
+        )}
 
-      {/* Video Info */}
-      <View style={{ position: 'absolute', bottom: 32, left: 20, right: 20 }}>
-        <View
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 8,
-            alignSelf: 'flex-start',
-            marginBottom: 10,
-          }}
-        >
-          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' }}>
-            {item.category}
+        {/* Video Info */}
+        <View style={{ 
+          position: 'absolute', 
+          bottom: 32, 
+          left: 20, 
+          right: 20,
+          zIndex: isPlaying ? 1003 : 3,
+        }}>
+          <View
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 8,
+              alignSelf: 'flex-start',
+              marginBottom: 10,
+            }}
+          >
+            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' }}>
+              {item.category}
+            </Text>
+          </View>
+          <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 }}>
+            {item.title}
           </Text>
         </View>
-        <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 }}>
-          {item.title}
-        </Text>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderEventCard = (event: APIEvent) => {
     const dateInfo = formatEventDate(event.date);
@@ -414,7 +695,7 @@ const onRefresh = useCallback(async () => {
       >
         <View style={{ position: 'relative' }}>
           <Image
-            source={{ uri: event.image }}
+            source={{uri: event.image || crusadeImagePlaceholder}}
             style={{ width: '100%', height: 130, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
             resizeMode="cover"
           />
@@ -544,117 +825,32 @@ const onRefresh = useCallback(async () => {
         }
       >
         {/* ── Hero Video Section ──────────────────────────────────────────── */}
-        <View>
-          <View style={{ height: 460 }}>
-            <FlatList
-              ref={videoFlatListRef}
-              data={videos}
-              renderItem={renderVideoItem}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onViewableItemsChanged={onViewableItemsChanged}
-              viewabilityConfig={viewabilityConfig}
-              keyExtractor={(item) => item.id}
-            />
+        {mediaLoading ? (
+          <View style={{ height: 460, backgroundColor: '#040725', justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#FFFFFF" />
+            <Text style={{ 
+              color: '#FFFFFF', 
+              marginTop: 16, 
+              fontSize: 16, 
+              fontWeight: '600' 
+            }}>
+              Loading videos...
+            </Text>
           </View>
-
-          {/* Header Overlay */}
-          <View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              paddingHorizontal: 20,
-              paddingTop: insets.top + 8,
-            }}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {/* Profile Avatar */}
-                <TouchableOpacity
-                  onPress={() => navigation?.navigate('Profile')}
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    backgroundColor: 'rgba(255,255,255,0.15)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 12,
-                    borderWidth: 2,
-                    borderColor: 'rgba(255,255,255,0.25)',
-                    overflow: 'hidden',
-                  }}
-                  activeOpacity={0.7}
-                >
-                  {profilePhoto ? (
-                    <Image
-                      source={{ uri: profilePhoto }}
-                      style={{ width: 44, height: 44, borderRadius: 22 }}
-                    />
-                  ) : (
-                    <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>
-                      {firstName ? firstName.charAt(0).toUpperCase() : 'U'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-                <View>
-                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '500' }}>
-                    {greeting}
-                  </Text>
-                  <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>
-                    {profileLoading ? '...' : firstName || 'Welcome'}
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: 'rgba(255,255,255,0.12)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                activeOpacity={0.7}
-              >
-                <NotificationIconWithBadge
-                  onPress={() => navigation?.navigate('Notifications')}
-                  color="#FFFFFF"
-                  size={20}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Pagination Dots */}
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 12,
-              left: 0,
-              right: 0,
-              flexDirection: 'row',
-              justifyContent: 'center',
-              gap: 6,
-            }}
-          >
-            {videos.map((_, index) => (
-              <View
-                key={index}
-                style={{
-                  height: 3,
-                  borderRadius: 2,
-                  width: currentVideoIndex === index ? 24 : 8,
-                  backgroundColor: currentVideoIndex === index ? '#FFF' : 'rgba(255,255,255,0.35)',
-                }}
-              />
-            ))}
-          </View>
-        </View>
+        ) : (
+          <HomeHero
+            videos={videos}
+            currentVideoIndex={currentVideoIndex}
+            videoFlatListRef={videoFlatListRef}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            profilePhoto={profilePhoto}
+            firstName={firstName}
+            profileLoading={profileLoading}
+            greeting={greeting}
+            navigation={navigation}
+          />
+        )}
 
         {/* ── Quick Actions ──────────────────────────────────────────────── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 }}>
@@ -854,7 +1050,7 @@ const onRefresh = useCallback(async () => {
                 <Text style={{ color: 'rgba(4,7,37,0.35)', fontSize: 12, marginTop: 8 }}>Loading verse...</Text>
               </View>
             ) : verse ? (
-              <>
+              <>      
                 <Text
                   style={{
                     color: 'rgba(4,7,37,0.7)',
@@ -864,7 +1060,7 @@ const onRefresh = useCallback(async () => {
                     letterSpacing: 0.1,
                   }}
                 >
-                  `{verse.text}`
+                  &quot;{verse.text}&quot;
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18 }}>
                   <View

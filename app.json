@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mowd",
+    "name": "Mowd Ministries",
     "slug": "mowd",
     "version": "1.0.0",
     "web": {
@@ -18,7 +18,9 @@
           "merchantIdentifier": "merchant.com.mowd.com",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-video",
+      "@react-native-community/datetimepicker"
     ],
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
