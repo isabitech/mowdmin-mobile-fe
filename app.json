@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Mowd Ministries",
-    "slug": "mowd",
+    "slug": "mowdministries-mobile",
     "version": "1.0.0",
     "web": {
       "favicon": "./src/assets/icon.png"
@@ -45,8 +45,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "72cfc788-6399-4028-a42a-0f7bf4071fc0"
+        "projectId": "b969ca6c-cdca-4142-9def-32d18410d38e"
       }
-    }
+    },
+    "owner": "isabitech"
   }
 }
