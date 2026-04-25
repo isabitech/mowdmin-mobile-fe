@@ -7,7 +7,9 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { ChevronLeftIcon, EmptyCartIcon } from '../components/Icons';
 import CartItemComponent from '../components/CartItem';
 import { useCart } from '../context/CartContext';
@@ -30,6 +32,16 @@ const CartScreen: React.FC<Props> = ({ navigation }) => {
 
     try {
       setOrdering(true);
+      
+      // Show toast message
+      Toast.show({
+        type: 'info',
+        text1: 'Processing Order',
+        text2: 'You can make payment on our website',
+        position: 'top',
+        visibilityTime: 3000,
+      });
+
       const orderItems = items.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
@@ -39,22 +51,29 @@ const CartScreen: React.FC<Props> = ({ navigation }) => {
 
       const order = await ordersAPI.createOrder(orderItems, totalPrice);
 
-      // Attempt Stripe payment
-      const paid = await payForOrder(order._id);
-
-      if (paid) {
-        Alert.alert(
-          'Payment Successful',
-          `Your order #${order._id.slice(-6).toUpperCase()} has been paid. Total: € ${totalPrice.toFixed(2)}`,
-          [{ text: 'OK', onPress: () => { clearCart(); navigation.navigate('ShopHome'); } }]
-        );
+      // Clear cart and redirect to Stripe payment
+      clearCart();
+      
+      // Get first product's stripe link
+      const firstProduct = items[0]?.product;
+      if (firstProduct && firstProduct.stripeLink) {
+        try {
+          const supported = await Linking.canOpenURL(firstProduct.stripeLink);
+          if (supported) {
+            await Linking.openURL(firstProduct.stripeLink);
+          } else {
+            Alert.alert('Error', 'Unable to open payment link.');
+          }
+        } catch (linkError) {
+          console.error('[CartScreen] Stripe link error:', linkError);
+          Alert.alert('Error', 'Unable to open payment link.');
+        }
       } else {
-        Alert.alert(
-          'Order Saved',
-          `Your order #${order._id.slice(-6).toUpperCase()} has been created. You can complete payment later.`,
-          [{ text: 'OK', onPress: () => { clearCart(); navigation.navigate('ShopHome'); } }]
-        );
+        Alert.alert('Error', 'Payment link not available.');
       }
+      
+      // Navigate back to shop
+      navigation.navigate('ShopHome');
     } catch (error: any) {
       Alert.alert(
         'Order Failed',

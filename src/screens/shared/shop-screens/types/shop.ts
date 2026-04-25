@@ -10,12 +10,13 @@ export interface Product {
   author: string;
   price: number;
   currency: string;
-  image: string;
+  imageUrl: string;
   category: ProductCategory;
   languages: Language[];
   description?: string;
   isBook?: boolean;
   isAlbum?: boolean;
+  stripeLink?: string;
 }
 
 export interface CartItem {

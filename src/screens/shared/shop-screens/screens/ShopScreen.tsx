@@ -11,27 +11,46 @@ import {
   RefreshControl,
   Platform,
   Dimensions,
+  Linking,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCart } from '../context/CartContext'; // Adjust path
-import productsAPI, { Product } from '../../../../services/productsAPI'; // Adjust path
+import Toast from 'react-native-toast-message';
+import productsAPI, { Product as APIProduct } from '../../../../services/productsAPI'; // Adjust path
+import { Product } from '../types/shop';
 
 const PRIMARY = '#040725';
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (width - 40 - CARD_GAP) / 2;
 
+// Transform API Product to Shop Product
+const transformProduct = (apiProduct: APIProduct): Product => ({
+  id: apiProduct.id,
+  title: apiProduct.name,
+  author: 'Various', // Default author since API doesn't provide this
+  price: apiProduct.price,
+  currency: 'USD', // Default currency
+  imageUrl: apiProduct.image,
+  category: apiProduct.category as any, // Map categories appropriately
+  languages: ['EN'], // Default language
+  description: apiProduct.description,
+  isBook: true, // Default to book type
+  isAlbum: false,
+  stripeLink: apiProduct.stripeLink,
+});
+
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
 const ProductCard = ({
   product,
   onPress,
-  onAddToCart,
+  onOrderNow,
 }: {
   product: Product;
   onPress: () => void;
-  onAddToCart: () => void;
+  onOrderNow: () => void;
 }) => (
   <TouchableOpacity
     style={{
@@ -51,27 +70,10 @@ const ProductCard = ({
     {/* Image */}
     <View style={{ position: 'relative' }}>
       <Image
-        source={{ uri: product.image }}
+        source={{ uri: product.imageUrl }}
         style={{ width: '100%', height: CARD_WIDTH * 1.05, backgroundColor: '#F1F5F9' }}
         resizeMode="cover"
       />
-      {/* Out of stock overlay */}
-      {!product.inStock && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.45)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>OUT OF STOCK</Text>
-        </View>
-      )}
       {/* Category badge */}
       {product.category && (
         <View
@@ -88,52 +90,42 @@ const ProductCard = ({
           <Text style={{ color: PRIMARY, fontSize: 10, fontWeight: '700' }}>{product.category}</Text>
         </View>
       )}
-      {/* Low stock indicator */}
-      {product.inStock && product.stock <= 5 && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            backgroundColor: '#FEF2F2',
-            paddingHorizontal: 6,
-            paddingVertical: 3,
-            borderRadius: 6,
-          }}
-        >
-          <Text style={{ color: '#EF4444', fontSize: 9, fontWeight: '700' }}>Only {product.stock} left</Text>
-        </View>
-      )}
     </View>
 
     {/* Info */}
     <View style={{ padding: 12 }}>
       <Text style={{ color: PRIMARY, fontSize: 13, fontWeight: '700', lineHeight: 18 }} numberOfLines={2}>
-        {product.name}
+        {product.title}
       </Text>
       <Text style={{ color: 'rgba(4,7,37,0.4)', fontSize: 11, marginTop: 4, lineHeight: 16 }} numberOfLines={1}>
         {product.description}
       </Text>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-        <Text style={{ color: PRIMARY, fontSize: 16, fontWeight: '800' }}>
-          ${product.price.toFixed(2)}
+      <View style={{ marginTop: 10 }}>
+        <Text style={{ color: PRIMARY, fontSize: 16, fontWeight: '800', marginBottom: 8 }}>
+          {product.currency}${product.price.toFixed(2)}
         </Text>
-        <TouchableOpacity
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 12,
-            backgroundColor: product.inStock ? PRIMARY : 'rgba(4,7,37,0.1)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onPress={product.inStock ? onAddToCart : undefined}
-          disabled={!product.inStock}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="add" size={18} color={product.inStock ? '#FFF' : 'rgba(4,7,37,0.3)'} />
-        </TouchableOpacity>
+        
+        {/* Add-to-cart is intentionally hidden while product checkout happens in the browser. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              height: 34,
+              borderRadius: 12,
+              backgroundColor: product.stripeLink ? PRIMARY : 'rgba(4,7,37,0.18)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={onOrderNow}
+            disabled={!product.stripeLink}
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>
+              {product.stripeLink ? 'Order Now' : 'Order Unavailable'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   </TouchableOpacity>
@@ -154,13 +146,15 @@ const ShopScreen: React.FC<Props> = ({ showBanner = true, navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { totalItems, addToCart } = useCart();
-
   const fetchProducts = useCallback(async () => {
     try {
       setError(null);
-      const data = await productsAPI.getAllProducts();
-      setProducts(data);
+      const apiData = await productsAPI.getAllProducts();
+      console.log('[ShopScreen] Raw API Response:', JSON.stringify(apiData, null, 2));
+      console.log('[ShopScreen] API Data Length:', apiData.length);
+      const transformedProducts = apiData.map(transformProduct);
+      console.log('[ShopScreen] Transformed Products:', JSON.stringify(transformedProducts, null, 2));
+      setProducts(transformedProducts);
     } catch (err: any) {
       console.error('[ShopScreen] fetchProducts error:', err);
       setError(err.response?.data?.message || 'Failed to load products.');
@@ -191,8 +185,8 @@ const ShopScreen: React.FC<Props> = ({ showBanner = true, navigation }) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (
-          !product.name.toLowerCase().includes(q) &&
-          !product.description.toLowerCase().includes(q) &&
+          !product.title.toLowerCase().includes(q) &&
+          !product.description?.toLowerCase().includes(q) &&
           !product.category.toLowerCase().includes(q)
         )
           return false;
@@ -206,8 +200,40 @@ const ShopScreen: React.FC<Props> = ({ showBanner = true, navigation }) => {
     navigation.navigate('ProductDetail', { productId: product.id });
   };
 
-  const handleAddToCart = (product: Product) => {
-    addToCart(product, ['EN']);
+  const handleOrderNow = async (product: Product) => {
+    if (!product.stripeLink) {
+      Alert.alert('Unavailable', 'No payment link available for this product.');
+      return;
+    }
+
+    try {
+      // Show toast message
+      Toast.show({
+        type: 'info',
+        text1: 'Redirecting to Payment',
+        text2: 'You can make payment on our website',
+        position: 'top',
+        visibilityTime: 3000,
+      });
+
+      // Add small delay for toast to show before opening link
+      setTimeout(async () => {
+        try {
+          const supported = await Linking.canOpenURL(product.stripeLink!);
+          if (supported) {
+            await Linking.openURL(product.stripeLink!);
+          } else {
+            Alert.alert('Error', 'Unable to open payment link.');
+          }
+        } catch (error) {
+          console.error('[ShopScreen] handleOrderNow error:', error);
+          Alert.alert('Error', 'Unable to open payment link.');
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('[ShopScreen] handleOrderNow error:', error);
+      Alert.alert('Error', 'Unable to open payment link.');
+    }
   };
 
   // ─── Loading State ────────────────────────────────────────────────────────
@@ -351,49 +377,10 @@ const ShopScreen: React.FC<Props> = ({ showBanner = true, navigation }) => {
           <View style={{ marginLeft: 14 }}>
             <Text style={{ color: PRIMARY, fontSize: 17, fontWeight: '800', letterSpacing: -0.2 }}>Shop</Text>
             <Text style={{ color: 'rgba(4,7,37,0.4)', fontSize: 12, marginTop: 2, fontWeight: '500' }}>
-              {products.length} products available
+              {products.length} products available for external order
             </Text>
           </View>
         </View>
-
-        <TouchableOpacity
-          style={{ position: 'relative', padding: 8 }}
-          onPress={() => navigation.navigate('Cart')}
-          activeOpacity={0.7}
-        >
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 14,
-              backgroundColor: PRIMARY,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="bag-handle" size={20} color="#FFF" />
-          </View>
-          {totalItems > 0 && (
-            <View
-              style={{
-                position: 'absolute',
-                top: 2,
-                right: 2,
-                backgroundColor: '#EF4444',
-                borderRadius: 10,
-                minWidth: 20,
-                height: 20,
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingHorizontal: 5,
-                borderWidth: 2,
-                borderColor: '#F8F9FC',
-              }}
-            >
-              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>{totalItems}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -530,7 +517,7 @@ const ShopScreen: React.FC<Props> = ({ showBanner = true, navigation }) => {
                   key={product.id}
                   product={product}
                   onPress={() => handleProductPress(product)}
-                  onAddToCart={() => handleAddToCart(product)}
+                  onOrderNow={() => handleOrderNow(product)}
                 />
               ))}
             </View>

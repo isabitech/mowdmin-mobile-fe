@@ -170,14 +170,14 @@ const ProfileScreen = () => {
   ];
 
   const ministrySettings = [
-    {
-      id: '4',
-      title: t('profile.giveHistory') || 'Give History',
-      icon: 'hand-coin-outline',
-      iconType: 'material-community',
-      onPress: () => navigation.navigate('GivingHistory' as never),
-      showArrow: true,
-    },
+    // {
+    //   id: '4',
+    //   title: t('profile.giveHistory') || 'Give History',
+    //   icon: 'hand-coin-outline',
+    //   iconType: 'material-community',
+    //   onPress: () => navigation.navigate('GivingHistory' as never),
+    //   showArrow: true,
+    // },
     {
       id: '4b',
       title: 'Membership',

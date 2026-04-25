@@ -7,13 +7,15 @@ import {
   StatusBar,
   Dimensions,
   ActivityIndicator,
+  Alert,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useCart } from '../context/CartContext';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { ShopStackParamList } from '../../../../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import productsAPI, { Product } from '../../../../services/productsAPI';
 
 type ProductDetailScreenRouteProp = RouteProp<ShopStackParamList, 'ProductDetail'>;
@@ -25,8 +27,6 @@ const ProductDetailScreen: React.FC = () => {
   const route = useRoute<ProductDetailScreenRouteProp>();
   const navigation = useNavigation();
   const { productId } = route.params;
-
-  const { addToCart, totalItems, isInCart } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,19 +48,34 @@ const ProductDetailScreen: React.FC = () => {
     fetchProduct();
   }, [productId]);
 
-  const inCart = product ? isInCart(product.id) : false;
-
-  const handleAddToCart = () => {
-    if (!product) return;
-    addToCart(product as any, ['EN']);
-  };
-
-  const handleOrderNow = () => {
-    if (!product) return;
-    if (!inCart) {
-      addToCart(product as any, ['EN']);
+  const handleOrderNow = async () => {
+    if (!product?.stripeLink) {
+      Alert.alert('Unavailable', 'No payment link available for this product.');
+      return;
     }
-    navigation.navigate('Cart' as never);
+
+    Toast.show({
+      type: 'info',
+      text1: 'Redirecting to Payment',
+      text2: 'You can complete this order in your browser',
+      position: 'top',
+      visibilityTime: 3000,
+    });
+
+    setTimeout(async () => {
+      try {
+        const supported = await Linking.canOpenURL(product.stripeLink!);
+        if (supported) {
+          await Linking.openURL(product.stripeLink!);
+          return;
+        }
+
+        Alert.alert('Error', 'Unable to open payment link.');
+      } catch (linkError) {
+        console.error('[ProductDetail] order redirect error:', linkError);
+        Alert.alert('Error', 'Unable to open payment link.');
+      }
+    }, 1000);
   };
 
   // Loading state
@@ -119,52 +134,12 @@ const ProductDetailScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
-      <View className="flex-row justify-between items-center px-4 py-3">
+      <View className="flex-row items-center px-4 py-3">
         <TouchableOpacity
           className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="chevron-back" size={22} color={PRIMARY} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          className="relative"
-          onPress={() => navigation.navigate('Cart' as never)}
-        >
-          <View
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 14,
-              backgroundColor: PRIMARY,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="bag-handle" size={20} color="#FFF" />
-          </View>
-          {totalItems > 0 && (
-            <View
-              style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                backgroundColor: '#EF4444',
-                borderRadius: 10,
-                minWidth: 20,
-                height: 20,
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingHorizontal: 5,
-                borderWidth: 2,
-                borderColor: '#FFFFFF',
-              }}
-            >
-              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>
-                {totalItems}
-              </Text>
-            </View>
-          )}
         </TouchableOpacity>
       </View>
 
@@ -255,40 +230,18 @@ const ProductDetailScreen: React.FC = () => {
       </ScrollView>
 
       {/* Bottom Action Buttons */}
-      <View className="flex-row p-4 pb-6 border-t border-slate-100 gap-3">
+      <View className="p-4 pb-6 border-t border-slate-100">
+        {/* Add-to-cart is intentionally hidden while product checkout happens in the browser. */}
         <TouchableOpacity
-          className={`flex-1 flex-row items-center justify-center py-3.5 rounded-xl border-2 ${
-            inCart || !product.inStock
-              ? 'border-slate-200 bg-slate-50'
-              : 'border-[#040725]'
-          }`}
-          onPress={handleAddToCart}
-          disabled={inCart || !product.inStock}
-        >
-          <Ionicons
-            name="bag-add-outline"
-            size={18}
-            color={inCart || !product.inStock ? '#94A3B8' : PRIMARY}
-          />
-          <Text
-            className={`text-[15px] font-semibold ml-2 ${
-              inCart || !product.inStock ? 'text-slate-400' : 'text-[#040725]'
-            }`}
-          >
-            {inCart ? 'In Cart' : 'Add to Cart'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          className="flex-1 items-center justify-center py-3.5 rounded-xl"
+          className="items-center justify-center py-3.5 rounded-xl"
           style={{
-            backgroundColor: product.inStock ? PRIMARY : '#CBD5E1',
+            backgroundColor: product.inStock && product.stripeLink ? PRIMARY : '#CBD5E1',
           }}
           onPress={handleOrderNow}
-          disabled={!product.inStock}
+          disabled={!product.inStock || !product.stripeLink}
         >
           <Text className="text-[15px] font-semibold text-white">
-            Order Now
+            {product.stripeLink ? 'Order Now' : 'Order Unavailable'}
           </Text>
         </TouchableOpacity>
       </View>

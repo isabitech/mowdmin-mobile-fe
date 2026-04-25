@@ -13,6 +13,8 @@ interface BackendProduct {
   createdAt: string;
   updatedAt: string;
   __v?: number;
+  imageUrl?: string | null; // In case the backend uses this field instead of 'image'
+  stripeLink?: string; // Optional field for Stripe checkout link
 }
 
 // Transformed product for frontend use
@@ -28,6 +30,7 @@ export interface Product {
   inStock: boolean;
   createdAt: string;
   updatedAt: string;
+  stripeLink?: string;
 }
 
 // Extract numeric price from the backend's $numberDecimal format
@@ -70,7 +73,7 @@ const categoryImages: Record<string, string> = {
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400';
 
 const getImageForProduct = (product: BackendProduct): string => {
-  if (product.image) return product.image;
+  if (product.imageUrl) return product.imageUrl;
   if (product.images && product.images.length > 0) return product.images[0];
   return categoryImages[product.category || ''] || DEFAULT_IMAGE;
 };
@@ -82,11 +85,12 @@ const transformProduct = (raw: BackendProduct): Product => ({
   price: extractPrice(raw.price),
   category: raw.category || 'General',
   stock: raw.stock ?? 0,
-  image: getImageForProduct(raw),
+  image: raw.imageUrl || getImageForProduct(raw),
   images: raw.images || [getImageForProduct(raw)],
   inStock: (raw.stock ?? 0) > 0,
   createdAt: raw.createdAt,
   updatedAt: raw.updatedAt,
+  stripeLink: raw.stripeLink
 });
 
 class ProductsAPI {

@@ -399,6 +399,15 @@ const onRefresh = useCallback(async () => {
   setRefreshing(false);
 }, [fetchProfile, fetchEvents, fetchVerse, fetchMedia]);
 
+  const handleQuickActionPress = useCallback((actionLabel: string, nav: string) => {
+    if (actionLabel === 'Donate') {
+      Alert.alert('Coming Soon', 'Donate is coming soon');
+      return;
+    }
+
+    navigation?.navigate(nav);
+  }, [navigation]);
+
   // Handle video playback
   const isYouTubeUrl = (url: string) => {
     return url.includes('youtube.com') || url.includes('youtu.be');
@@ -865,7 +874,7 @@ const onRefresh = useCallback(async () => {
               <TouchableOpacity
                 key={action.label}
                 style={{ flex: 1, borderRadius: 20, overflow: 'hidden', height: 90 }}
-                onPress={() => navigation?.navigate(action.nav)}
+                onPress={() => handleQuickActionPress(action.label, action.nav)}
                 activeOpacity={0.85}
               >
                 <LinearGradient colors={[...action.colors]} style={{ flex: 1, padding: 16, justifyContent: 'space-between' }}>
@@ -897,7 +906,7 @@ const onRefresh = useCallback(async () => {
               <TouchableOpacity
                 key={action.label}
                 style={{ flex: 1, borderRadius: 20, overflow: 'hidden', height: 90 }}
-                onPress={() => navigation?.navigate(action.nav)}
+                onPress={() => handleQuickActionPress(action.label, action.nav)}
                 activeOpacity={0.85}
               >
                 <LinearGradient colors={[...action.colors]} style={{ flex: 1, padding: 16, justifyContent: 'space-between' }}>

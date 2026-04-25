@@ -24,20 +24,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const addToCart = useCallback((product: Product, selectedLanguages: Language[] = ['EN']) => {
-    setItems((prev) => {
-      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
-      
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + 1,
-        };
-        return updated;
-      }
-      
-      return [...prev, { product, quantity: 1, selectedLanguages }];
-    });
+    // External checkout only supports one product at a time for now.
+    setItems([{ product, quantity: 1, selectedLanguages }]);
   }, []);
 
   const removeFromCart = useCallback((productId: string) => {
@@ -52,7 +40,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     setItems((prev) =>
       prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
+        // Clamp quantity so legacy cart paths cannot exceed a single item.
+        item.product.id === productId ? { ...item, quantity: 1 } : item
       )
     );
   }, [removeFromCart]);
