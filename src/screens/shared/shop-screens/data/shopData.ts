@@ -1,0 +1,87 @@
+import { Product, PromoBanner, ProductCategory } from '../types/shop';
+
+export const categories: { id: ProductCategory | 'All'; label: string }[] = [
+  { id: 'All', label: 'All' },
+  { id: 'Devotional', label: 'Devotional' },
+  { id: 'Worship', label: 'Worship' },
+  { id: 'Spiritual Growth', label: 'Spiritual Growth' },
+  { id: 'Prophetic', label: 'Prophetic' },
+];
+
+export const promoBanner: PromoBanner = {
+  id: '1',
+  title: 'Up to 20% off this inspirational books',
+  subtitle: 'Get special discount',
+  discount: '20%',
+  ctaText: 'Buy now',
+};
+
+export const products: Product[] = [
+  {
+    id: '1',
+    title: 'THE CRY OF THE IMAGE OF GOD',
+    author: 'Apostle O.M. Bamigbola',
+    price: 200,
+    currency: '€',
+    image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400',
+    category: 'Devotional',
+    languages: ['EN', 'FR', 'DE'],
+    description: '"Why me?"—a cry of despair many utter in moments of suffering, questioning God\'s existence. This book reveals how understanding our place before God and His guidance transforms that cry of sorrow and doubt into faith. It offers teaching and illumination for all who seek to walk as children of God.',
+    isBook: true,
+  },
+  {
+    id: '2',
+    title: 'YOUR KINGDOM REIGNS',
+    author: 'Daniel Crosswell',
+    price: 65,
+    currency: '€',
+    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400',
+    category: 'Worship',
+    languages: ['EN'],
+    isAlbum: true,
+  },
+  {
+    id: '3',
+    title: 'INSPIRATIONAL HONOURY',
+    author: 'Nathaniel Gracefield',
+    price: 140,
+    currency: '€',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+    category: 'Spiritual Growth',
+    languages: ['EN', 'FR'],
+    isBook: true,
+  },
+  {
+    id: '4',
+    title: 'MAKE IT REAL',
+    author: 'Prophet Samuel',
+    price: 180,
+    currency: '€',
+    image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400',
+    category: 'Prophetic',
+    languages: ['EN', 'DE'],
+    isBook: true,
+  },
+  {
+    id: '5',
+    title: 'WALKING IN FAITH',
+    author: 'Pastor Michael',
+    price: 95,
+    currency: '€',
+    image: 'https://images.unsplash.com/photo-1476275466078-4007374efbbe?w=400',
+    category: 'Devotional',
+    languages: ['EN', 'FR'],
+    isBook: true,
+  },
+  {
+    id: '6',
+    title: 'PRAISE UNLIMITED',
+    author: 'Worship Team',
+    price: 50,
+    currency: '€',
+    image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
+    category: 'Worship',
+    languages: ['EN'],
+    isAlbum: true,
+  },
+];

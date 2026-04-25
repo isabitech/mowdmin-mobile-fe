@@ -1,0 +1,25 @@
+To stop the locking process, you can try one of the following methods:
+
+**Method 1: Using Task Manager (Recommended for ease of use)**
+
+1.  Press `Ctrl + Shift + Esc` to open the Task Manager.
+2.  Go to the "Details" tab.
+3.  Look for any processes named `node.exe`, `metro.bat`, or anything that looks related to `expo` or your project name (e.g., "my-expo-app").
+4.  Select the process(es) and click the "End task" button. Confirm if prompted.
+
+**Method 2: Using Command Prompt or PowerShell (More advanced)**
+
+1.  Open Command Prompt or PowerShell **as an Administrator**.
+2.  To find processes that might be using the ports your Expo app uses (e.g., 8081 or 8082), run these commands:
+    ```powershell
+    netstat -ano | findstr :8081
+    netstat -ano | findstr :8082
+    ```
+    This will show you lines of output. At the very end of each line, you'll see a number, which is the Process ID (PID).
+3.  To terminate a process using its PID, use the `taskkill` command. Replace `<PID>` with the actual process ID you found:
+    ```powershell
+    taskkill /PID <PID> /F
+    ```
+    (The `/F` flag forces termination). Repeat this for any relevant PIDs.
+
+After you have stopped all relevant processes, please try to delete the `node_modules` folder and `package-lock.json` file manually, and then let me know. If you are successful, I will proceed with running `npm install` and starting the app.

@@ -1,0 +1,60 @@
+Here is a comprehensive list of the backend endpoints your application will require.
+
+The API client is configured with the base URL `https://mowdmin-mobile-be-qwo0.onrender.com/api/v1` and uses a JWT Bearer token for authentication.
+
+### Application Backend Endpoints
+These are the endpoints defined in your application's services.
+
+**Authentication**
+-   `POST /auth/register`: Register a new user.
+-   `POST /auth/login`: Log in a user.
+-   `POST /auth/logout`: Log out a user.
+-   `POST /auth/verify-otp`: Verify a user's email with an OTP.
+-   `POST /auth/resend-otp`: Resend an OTP.
+
+**Events**
+-   `GET /event`: Get all events.
+-   `GET /event/:id`: Get a single event by its ID.
+-   `POST /events/create`: Create a new event.
+-   `PUT /events/:id`: Update an existing event.
+-   `DELETE /events/:id`: Delete an event.
+
+**Event Registrations**
+-   `POST /event-registration/register`: Register the current user for an event.
+-   `GET /event-registration/user`: Get all event registrations for the current user.
+-   `DELETE /event-registration/:id`: Cancel a user's registration for an event.
+-   `GET /event-registration`: Get all registrations for all users.
+-   `GET /event-registration/event/:eventId`: Get all registrations for a specific event.
+-   `GET /event-registration/:id`: Get a single registration by its ID.
+-   `PUT /event-registration/:id`: Update an event registration.
+
+---
+
+### Newly Discovered & Inferred Endpoints
+These endpoints are not fully implemented but are suggested by mock data and UI elements in your code.
+
+**User Profile & Social**
+-   `POST /auth/forgot-password`: (Inferred) Handle password reset requests.
+-   `POST /auth/google`: (Inferred) Handle Google sign-in.
+-   `POST /auth/apple`: (Inferred) Handle Apple sign-in.
+
+**Community & Groups**
+-   `GET /groups/me`: (Inferred) Get groups the current user is a member of.
+-   `GET /groups/discover`: (Inferred) Get a list of groups the user can join.
+-   `GET /groups/:id`: (Inferred) Get details for a specific group.
+-   `GET /groups/:id/messages`: (Inferred) Get chat messages for a specific group.
+
+**Content**
+-   `GET /videos`: (Inferred) Get a list of videos.
+-   `GET /ministries`: (Inferred) Get a list of ministries.
+
+**Notifications**
+-   `GET /notifications`: (Inferred) Fetch user notifications.
+
+---
+
+### External Third-Party APIs
+Your application also consumes data from these external, public APIs:
+
+-   `https://bible-api.com`: Used in the home screen to fetch Bible verses.
+-   `https://bible.helloao.org/api`: Used in the Bible screen to fetch books and chapters.
