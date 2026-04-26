@@ -8,6 +8,11 @@
       "developmentClient": true,
       "distribution": "internal"
     },
+    "shareable": {
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "preview": {
       "distribution": "internal"
     },
