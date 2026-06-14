@@ -19,6 +19,14 @@
           "enableGooglePay": true
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/icon.png",
+          "color": "#040725",
+          "defaultChannel": "events"
+        }
+      ],
       "expo-video",
       "@react-native-community/datetimepicker"
     ],

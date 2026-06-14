@@ -21,7 +21,10 @@ import GivingHistoryScreen from '../screens/profile/GivingHistoryScreen';
 import AboutMowdministriesScreen from '../screens/profile/AboutMowdministriesScreen';
 import BibleScreen from '../screens/content/BibleScreen';
 import BibleStoriesScreen from '../screens/content/BibleStoriesScreen';
+import GospelMusicScreen from '../screens/content/GospelMusicScreen';
+import SermonsScreen from '../screens/content/SermonsScreen';
 import CommunityScreen from '../screens/community/CommunityScreen';
+import TestimoniesScreen from '../screens/community/TestimoniesScreen';
 import CreateNewGroupScreen from '../screens/community/CreateNewGroupScreen';
 import GroupChatScreen from '../screens/community/GroupChatScreen';
 import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
@@ -76,6 +79,9 @@ export default function AppNavigator() {
         <Stack.Screen name="AboutMowdministries" component={AboutMowdministriesScreen} />
         <Stack.Screen name="Bible" component={BibleScreen} />
         <Stack.Screen name="BibleStories" component={BibleStoriesScreen} />
+        <Stack.Screen name="GospelMusic" component={GospelMusicScreen} />
+        <Stack.Screen name="Sermons" component={SermonsScreen} />
+        <Stack.Screen name="Testimonies" component={TestimoniesScreen} />
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="CreateNewGroup" component={CreateNewGroupScreen} />
         <Stack.Screen name="GroupChat" component={GroupChatScreen} />

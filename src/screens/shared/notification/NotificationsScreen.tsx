@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { notificationsAPI, AppNotification } from '../../../services/notificationsApi';
+import { AppNotification } from '../../../services/notificationsApi';
+import { useNotifications } from '../../../contexts/NotificationContext';
 
 const getNotificationIcon = (type: string) => {
   const configs: Record<string, { icon: string; iconColor: string; iconBg: string }> = {
@@ -20,6 +21,7 @@ const getNotificationIcon = (type: string) => {
     group: { icon: 'people', iconColor: '#4CAF50', iconBg: '#E8F5E9' },
     membership: { icon: 'ribbon', iconColor: '#9C27B0', iconBg: '#F3E5F5' },
     reminder: { icon: 'notifications', iconColor: '#FF9800', iconBg: '#FFF3E0' },
+    event: { icon: 'calendar', iconColor: '#0EA5E9', iconBg: '#E0F2FE' },
     info: { icon: 'information-circle', iconColor: '#4C6FFF', iconBg: '#E8ECFF' },
   };
   return configs[type] || configs.info;
@@ -46,6 +48,8 @@ const formatTimeAgo = (dateStr: string): string => {
 
 interface NotificationDisplay {
   id: string;
+  source: 'backend' | 'local';
+  notificationKey?: string;
   title: string;
   description: string;
   time: string;
@@ -53,12 +57,15 @@ interface NotificationDisplay {
   iconColor: string;
   iconBg: string;
   isNew: boolean;
+  metadata?: Record<string, unknown>;
 }
 
 const toDisplay = (n: AppNotification): NotificationDisplay => {
   const config = getNotificationIcon(n.type);
   return {
     id: n._id,
+    source: n.source || 'backend',
+    notificationKey: n.notificationKey,
     title: n.title,
     description: n.message,
     time: formatTimeAgo(n.createdAt),
@@ -66,6 +73,7 @@ const toDisplay = (n: AppNotification): NotificationDisplay => {
     iconColor: config.iconColor,
     iconBg: config.iconBg,
     isNew: !n.isRead,
+    metadata: n.metadata,
   };
 };
 
@@ -176,47 +184,75 @@ const SwipeableNotification = ({
 };
 
 const NotificationsScreen = ({ navigation }: any) => {
+  const {
+    notifications: notificationItems,
+    loading,
+    refreshNotifications,
+    markNotificationAsRead,
+    dismissNotification,
+  } = useNotifications();
   const [notifications, setNotifications] = useState<NotificationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const data = await notificationsAPI.getAll();
-      setNotifications(data.map(toDisplay));
-    } catch (error: any) {
-      console.error('[Notifications] fetch error:', error.message);
+      await refreshNotifications();
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [refreshNotifications]);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    setNotifications(notificationItems.map(toDisplay));
+  }, [notificationItems]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchNotifications();
+    void fetchNotifications();
   };
 
   const unreadCount = notifications.filter(n => n.isNew).length;
 
-  const handleDelete = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const handleDelete = async (notification: NotificationDisplay) => {
+    const appNotification = notificationItems.find(
+      item =>
+        item._id === notification.id &&
+        (item.source || 'backend') === notification.source &&
+        item.notificationKey === notification.notificationKey
+    );
+
+    if (!appNotification) {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      return;
+    }
+
+    await dismissNotification(appNotification);
   };
 
   const handleNotificationPress = async (notification: NotificationDisplay) => {
+    const appNotification = notificationItems.find(
+      item =>
+        item._id === notification.id &&
+        (item.source || 'backend') === notification.source &&
+        item.notificationKey === notification.notificationKey
+    );
+
+    if (!appNotification) {
+      return;
+    }
+
     if (notification.isNew) {
-      try {
-        await notificationsAPI.markAsRead(notification.id);
-        setNotifications(prev =>
-          prev.map(n => n.id === notification.id ? { ...n, isNew: false } : n)
-        );
-      } catch (error: any) {
-        console.error('[Notifications] markAsRead error:', error.message);
-      }
+      await markNotificationAsRead(appNotification);
+    }
+
+    const target = notification.metadata?.target;
+    const eventId = notification.metadata?.eventId;
+
+    if (target === 'event') {
+      navigation.navigate('Tabs', {
+        screen: 'Event',
+        params: typeof eventId === 'string' ? { eventId } : undefined,
+      });
     }
   };
 
@@ -281,10 +317,14 @@ const NotificationsScreen = ({ navigation }: any) => {
         >
           {notifications.map((notification) => (
             <SwipeableNotification
-              key={notification.id}
+              key={`${notification.source}:${notification.notificationKey || notification.id}`}
               notification={notification}
-              onDelete={() => handleDelete(notification.id)}
-              onPress={() => handleNotificationPress(notification)}
+              onDelete={() => {
+                void handleDelete(notification);
+              }}
+              onPress={() => {
+                void handleNotificationPress(notification);
+              }}
             />
           ))}
         </ScrollView>

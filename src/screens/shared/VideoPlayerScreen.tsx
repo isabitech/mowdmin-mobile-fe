@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useEventListener } from 'expo';
 import {
   View,
   Text,
@@ -11,79 +12,89 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { RootStackParamList } from '../../navigation/types';
 
 type VideoPlayerScreenProps = NativeStackScreenProps<RootStackParamList, 'VideoPlayer'>;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-const PRIMARY = '#040725';
-
 const VideoPlayerScreen = ({ navigation, route }: VideoPlayerScreenProps) => {
   const { videoUrl, title, author } = route.params;
-  const video = useRef<Video>(null);
-  const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
+  const videoViewRef = useRef<VideoView | null>(null);
+  const lastErrorMessageRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const player = useVideoPlayer(
+    {
+      uri: videoUrl,
+      metadata: {
+        title,
+        artist: author,
+      },
+    },
+    (player) => {
+      player.loop = false;
+      player.timeUpdateEventInterval = 0.25;
+      player.play();
+    }
+  );
 
   useEffect(() => {
+    setIsLoading(true);
+    setShowControls(true);
+    setIsFullscreen(false);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    lastErrorMessageRef.current = null;
+  }, [author, title, videoUrl]);
+
+  useEffect(() => {
+    if (!showControls) {
+      return undefined;
+    }
+
     const timer = setTimeout(() => {
-      if (showControls) {
-        setShowControls(false);
-      }
+      setShowControls(false);
     }, 3000);
 
     return () => clearTimeout(timer);
   }, [showControls]);
 
-  const handlePlayPause = async () => {
-    if (status?.isLoaded) {
-      if (status.isPlaying) {
-        await video.current?.pauseAsync();
-      } else {
-        await video.current?.playAsync();
-      }
+  const retryPlayback = async () => {
+    try {
+      lastErrorMessageRef.current = null;
+      setIsLoading(true);
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+
+      await player.replaceAsync({
+        uri: videoUrl,
+        metadata: {
+          title,
+          artist: author,
+        },
+      });
+
+      player.play();
+    } catch (error) {
+      console.error('Video retry failed:', error);
+      Alert.alert(
+        'Playback Error',
+        'Unable to reload this video right now. Please try again later.'
+      );
     }
   };
 
-  const handleSeek = async (position: number) => {
-    if (status?.isLoaded && status.durationMillis) {
-      const seekPosition = (position / 100) * status.durationMillis;
-      await video.current?.setPositionAsync(seekPosition);
-    }
-  };
-
-  const formatTime = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const getProgressPercentage = () => {
-    if (status?.isLoaded && status.durationMillis && status.positionMillis) {
-      return (status.positionMillis / status.durationMillis) * 100;
-    }
-    return 0;
-  };
-
-  const toggleControls = () => {
-    setShowControls(!showControls);
-  };
-
-  const toggleFullscreen = async () => {
-    if (isFullscreen) {
-      await video.current?.presentFullscreenPlayer();
-    } else {
-      await video.current?.dismissFullscreenPlayer();
-    }
-    setIsFullscreen(!isFullscreen);
-  };
-
-  const handleVideoError = (error: string) => {
-    console.error('Video playback error:', error);
+  const handleVideoError = (errorMessage: string) => {
+    console.error('Video playback error:', errorMessage);
     Alert.alert(
       'Playback Error',
       'Unable to play this video. Please check your internet connection and try again.',
@@ -95,36 +106,111 @@ const VideoPlayerScreen = ({ navigation, route }: VideoPlayerScreenProps) => {
         {
           text: 'Retry',
           onPress: () => {
-            setIsLoading(true);
-            video.current?.loadAsync({ uri: videoUrl }, { shouldPlay: true });
+            void retryPlayback();
           },
         },
       ]
     );
   };
 
-  const onPlaybackStatusUpdate = (playbackStatus: AVPlaybackStatus) => {
-    setStatus(playbackStatus);
-    if (playbackStatus.isLoaded) {
-      if (isLoading) {
-        setIsLoading(false);
+  useEventListener(player, 'playingChange', ({ isPlaying }) => {
+    setIsPlaying(isPlaying);
+  });
+
+  useEventListener(player, 'timeUpdate', ({ currentTime }) => {
+    setCurrentTime(currentTime);
+  });
+
+  useEventListener(player, 'sourceLoad', ({ duration }) => {
+    setDuration(duration);
+    setIsLoading(false);
+    lastErrorMessageRef.current = null;
+  });
+
+  useEventListener(player, 'statusChange', ({ status, error }) => {
+    if (status === 'loading') {
+      setIsLoading(true);
+      return;
+    }
+
+    if (status === 'readyToPlay') {
+      setIsLoading(false);
+      return;
+    }
+
+    if (status !== 'error') {
+      return;
+    }
+
+    const errorMessage = error?.message ?? 'Unknown playback error';
+    if (lastErrorMessageRef.current === errorMessage) {
+      return;
+    }
+
+    lastErrorMessageRef.current = errorMessage;
+    handleVideoError(errorMessage);
+  });
+
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  };
+
+  const handleSeekBy = (seconds: number) => {
+    if (duration <= 0) {
+      return;
+    }
+
+    const nextTime = Math.max(0, Math.min(duration, currentTime + seconds));
+    player.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  };
+
+  const formatTime = (seconds: number) => {
+    const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainingSeconds = safeSeconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const getProgressPercentage = () => {
+    if (duration <= 0) {
+      return 0;
+    }
+
+    return Math.min(100, Math.max(0, (currentTime / duration) * 100));
+  };
+
+  const toggleControls = () => {
+    setShowControls((currentValue) => !currentValue);
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (isFullscreen) {
+        await videoViewRef.current?.exitFullscreen();
+      } else {
+        await videoViewRef.current?.enterFullscreen();
       }
-      if (playbackStatus.error) {
-        handleVideoError(playbackStatus.error);
-      }
+    } catch (error) {
+      console.error('Fullscreen toggle failed:', error);
+      Alert.alert('Fullscreen Unavailable', 'Unable to change fullscreen mode right now.');
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" translucent />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        
+
         <View style={styles.titleContainer}>
           <Text style={styles.title} numberOfLines={1}>
             {title}
@@ -135,31 +221,27 @@ const VideoPlayerScreen = ({ navigation, route }: VideoPlayerScreenProps) => {
             </Text>
           )}
         </View>
-        
+
         <TouchableOpacity onPress={toggleFullscreen} style={styles.fullscreenButton}>
-          <Ionicons 
-            name={isFullscreen ? "contract" : "expand"} 
-            size={20} 
-            color="#FFF" 
-          />
+          <Ionicons name={isFullscreen ? 'contract' : 'expand'} size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
 
       {/* Video Player */}
-      <TouchableOpacity 
-        style={styles.videoContainer} 
-        onPress={toggleControls}
-        activeOpacity={1}
-      >
-        <Video
-          ref={video}
+      <TouchableOpacity style={styles.videoContainer} onPress={toggleControls} activeOpacity={1}>
+        <VideoView
+          ref={videoViewRef}
           style={styles.video}
-          source={{ uri: videoUrl }}
-          useNativeControls={false}
-          resizeMode={ResizeMode.CONTAIN}
-          shouldPlay={true}
-          isLooping={false}
-          onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+          player={player}
+          nativeControls={false}
+          contentFit="contain"
+          allowsFullscreen
+          onFirstFrameRender={() => {
+            setIsLoading(false);
+            lastErrorMessageRef.current = null;
+          }}
+          onFullscreenEnter={() => setIsFullscreen(true)}
+          onFullscreenExit={() => setIsFullscreen(false)}
         />
 
         {/* Loading Indicator */}
@@ -177,11 +259,11 @@ const VideoPlayerScreen = ({ navigation, route }: VideoPlayerScreenProps) => {
             {/* Center Play/Pause Button */}
             <TouchableOpacity style={styles.centerPlayButton} onPress={handlePlayPause}>
               <View style={styles.playButtonBackground}>
-                <Ionicons 
-                  name={status?.isLoaded && status.isPlaying ? "pause" : "play"} 
-                  size={32} 
-                  color="#FFF" 
-                  style={{ marginLeft: status?.isLoaded && !status.isPlaying ? 3 : 0 }}
+                <Ionicons
+                  name={isPlaying ? 'pause' : 'play'}
+                  size={32}
+                  color="#FFF"
+                  style={{ marginLeft: !isPlaying ? 3 : 0 }}
                 />
               </View>
             </TouchableOpacity>
@@ -191,57 +273,26 @@ const VideoPlayerScreen = ({ navigation, route }: VideoPlayerScreenProps) => {
               {/* Progress Bar */}
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill, 
-                      { width: `${getProgressPercentage()}%` }
-                    ]} 
-                  />
+                  <View style={[styles.progressFill, { width: `${getProgressPercentage()}%` }]} />
                 </View>
               </View>
 
               {/* Time and Controls */}
               <View style={styles.timeAndControls}>
                 <Text style={styles.timeText}>
-                  {status?.isLoaded && status.positionMillis 
-                    ? formatTime(status.positionMillis) 
-                    : '0:00'
-                  } / {status?.isLoaded && status.durationMillis 
-                    ? formatTime(status.durationMillis) 
-                    : '0:00'
-                  }
+                  {formatTime(currentTime)} / {formatTime(duration)}
                 </Text>
-                
+
                 <View style={styles.controlButtons}>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      if (status?.isLoaded && status.positionMillis) {
-                        video.current?.setPositionAsync(Math.max(0, status.positionMillis - 10000));
-                      }
-                    }}
-                    style={styles.controlButton}
-                  >
+                  <TouchableOpacity onPress={() => handleSeekBy(-10)} style={styles.controlButton}>
                     <Ionicons name="play-back" size={20} color="#FFF" />
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity onPress={handlePlayPause} style={styles.controlButton}>
-                    <Ionicons 
-                      name={status?.isLoaded && status.isPlaying ? "pause" : "play"} 
-                      size={20} 
-                      color="#FFF" 
-                    />
+                    <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color="#FFF" />
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    onPress={() => {
-                      if (status?.isLoaded && status.positionMillis && status.durationMillis) {
-                        video.current?.setPositionAsync(
-                          Math.min(status.durationMillis, status.positionMillis + 10000)
-                        );
-                      }
-                    }}
-                    style={styles.controlButton}
-                  >
+
+                  <TouchableOpacity onPress={() => handleSeekBy(10)} style={styles.controlButton}>
                     <Ionicons name="play-forward" size={20} color="#FFF" />
                   </TouchableOpacity>
                 </View>

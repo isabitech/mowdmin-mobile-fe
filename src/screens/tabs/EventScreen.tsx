@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRoute } from '@react-navigation/native';
 import { eventsAPI, eventRegistrationAPI, Event, EventRegistration } from '../../services/eventsApi';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 interface Props {
   navigation?: any;
@@ -50,6 +50,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const { refreshEventNotificationSync } = useNotifications();
   
   // Search state
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -60,8 +61,8 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
   // Fetch events and user registrations
   useEffect(() => {
     console.log('[EventsScreen] Component mounted, fetching initial data...');
-    fetchData();
-  }, []);
+    void fetchData();
+  }, [fetchData]);
 
   // Handle deep linking
   useEffect(() => {
@@ -83,7 +84,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [eventId, events]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     console.log('[EventsScreen] Starting fetchData...');
     try {
       setLoading(true);
@@ -107,6 +108,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
 
       setEvents(eventsData);
       setUserRegistrations(registrationsData);
+      void refreshEventNotificationSync();
 
       console.log('[EventsScreen] State updated with new data');
     } catch (error: any) {
@@ -121,7 +123,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
       setLoading(false);
       console.log('[EventsScreen] Loading state set to false');
     }
-  };
+  }, [refreshEventNotificationSync]);
 
   const onRefresh = async () => {
     console.log('[EventsScreen] Pull to refresh triggered');
@@ -154,11 +156,11 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   // Check if user is registered for an event
-  const isUserRegistered = (checkEventId: string): boolean => {
+  const isUserRegistered = useCallback((checkEventId: string): boolean => {
     return userRegistrations.some(
       (reg) => reg.eventId === checkEventId && reg.status !== 'cancelled'
     );
-  };
+  }, [userRegistrations]);
 
   // Check if a date has any registered events
   const hasRegisteredEventOnDate = (day: number): boolean => {
@@ -178,7 +180,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
     return events
       .filter((event) => isUserRegistered(event.id))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [events, userRegistrations]);
+  }, [events, isUserRegistered]);
 
   // Search filtered events
   const searchResults = useMemo(() => {
@@ -208,6 +210,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
 
       const registrationsData = await eventRegistrationAPI.getUserRegistrations();
       setUserRegistrations(registrationsData);
+      void refreshEventNotificationSync();
     } catch (error: any) {
       console.error('═══════════════════════════════════════');
       console.error('REGISTRATION ERROR DETAILS:');
@@ -245,6 +248,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
               Alert.alert('Success', 'You have been unregistered from this event.');
               const registrationsData = await eventRegistrationAPI.getUserRegistrations();
               setUserRegistrations(registrationsData);
+              void refreshEventNotificationSync();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.message || 'Failed to unregister.');
             } finally {
@@ -708,7 +712,9 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
               // Show results
               <>
                 <Text className="text-sm text-gray-500 mb-4">
-                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
+                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for
+                  {' '}
+                  &quot;{searchQuery}&quot;
                 </Text>
                 {searchResults.map((event) => renderSearchResultItem(event))}
               </>
@@ -720,7 +726,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
                 </View>
                 <Text className="text-gray-900 text-lg font-semibold mb-2">No Results Found</Text>
                 <Text className="text-gray-500 text-sm text-center px-8">
-                  No events match "{searchQuery}". Try a different search term.
+                  No events match &quot;{searchQuery}&quot;. Try a different search term.
                 </Text>
               </View>
             )}
@@ -848,10 +854,10 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: '#166534', fontWeight: '600', fontSize: 15 }}>
-                    You're registered!
+                    You&apos;re registered!
                   </Text>
                   <Text style={{ color: '#16A34A', fontSize: 13, marginTop: 2 }}>
-                    We'll remind you before the event
+                    We&apos;ll remind you before the event
                   </Text>
                 </View>
               </View>
@@ -1013,7 +1019,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
           {registeredEvents.length > 0 ? (
             <>
               <Text className="text-sm text-gray-500 mb-4">
-                You're registered for {registeredEvents.length} event
+                You&apos;re registered for {registeredEvents.length} event
                 {registeredEvents.length !== 1 ? 's' : ''}
               </Text>
               {registeredEvents.map((event) => renderEventCard(event, true))}
@@ -1028,7 +1034,7 @@ const EventsOutreachScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
               <Text className="text-gray-900 text-lg font-semibold mb-2">No Registered Events</Text>
               <Text className="text-gray-500 text-sm text-center px-8">
-                You haven't registered for any events yet. Browse events and tap Register to get started!
+                You haven&apos;t registered for any events yet. Browse events and tap Register to get started!
               </Text>
               <TouchableOpacity
                 className="mt-6 px-6 py-3 rounded-xl bg-[#040725]"

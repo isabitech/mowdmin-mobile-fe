@@ -7,7 +7,7 @@ interface NotificationIconWithBadgeProps {
   onPress: () => void;
   color?: string;
   size?: number;
-  iconName?: string;
+  iconName?: React.ComponentProps<typeof Ionicons>['name'];
 }
 
 const NotificationIconWithBadge = ({ 
