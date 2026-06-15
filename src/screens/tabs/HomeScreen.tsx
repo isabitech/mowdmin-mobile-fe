@@ -494,13 +494,14 @@ const onRefresh = useCallback(async () => {
         icon: 'bag-handle' as const,
         colors: [PRIMARY, '#0A1045'] as const,
         nav: 'ShopStack',
+        fullWidth: true,
       },
-      {
-        label: 'Donate',
-        icon: 'heart' as const,
-        colors: ['#F97316', '#EA580C'] as const,
-        nav: 'GivingHistory',
-      },
+      // {
+      //   label: 'Donate',
+      //   icon: 'heart' as const,
+      //   colors: ['#F97316', '#EA580C'] as const,
+      //   nav: 'GivingHistory',
+      // },
     ],
     [
       {
@@ -522,13 +523,14 @@ const onRefresh = useCallback(async () => {
         icon: 'mic' as const,
         colors: ['#7C3AED', '#6D28D9'] as const,
         nav: 'Sermons',
+        fullWidth: true,
       },
-      {
-        label: 'Bible Stories',
-        icon: 'book-outline' as const,
-        colors: ['#8B5CF6', '#7C3AED'] as const,
-        nav: 'BibleStories',
-      },
+      // {
+      //   label: 'Bible Stories',
+      //   icon: 'book-outline' as const,
+      //   colors: ['#8B5CF6', '#7C3AED'] as const,
+      //   nav: 'BibleStories',
+      // },
     ],
     [
       {

@@ -13,282 +13,33 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../../contexts/LanguageContext';
+import {
+  BIBLE_TRANSLATION_OPTIONS,
+  DEFAULT_BIBLE_TRANSLATION_ID,
+  fetchBibleChapter,
+  getBibleBooks,
+  getPreferredBibleTranslationId,
+  isBibleTranslationSupported,
+  type BibleBook,
+  type BibleTranslationOption,
+} from '../../services/bibleReaderApi';
 
 const PRIMARY = '#040725';
 const ACCENT = '#3B82F6';
 
-const API_BASE = 'https://bible.helloao.org/api';
 const BIBLE_TRANSLATION_STORAGE_KEY = '@bible_translation';
-const DEFAULT_TRANSLATION_ID = 'engbsb';
-
-const oldTestamentIds = [
-  'GEN',
-  'EXO',
-  'LEV',
-  'NUM',
-  'DEU',
-  'JOS',
-  'JDG',
-  'RUT',
-  '1SA',
-  '2SA',
-  '1KI',
-  '2KI',
-  '1CH',
-  '2CH',
-  'EZR',
-  'NEH',
-  'EST',
-  'JOB',
-  'PSA',
-  'PRO',
-  'ECC',
-  'SNG',
-  'ISA',
-  'JER',
-  'LAM',
-  'EZK',
-  'DAN',
-  'HOS',
-  'JOL',
-  'AMO',
-  'OBA',
-  'JON',
-  'MIC',
-  'NAM',
-  'HAB',
-  'ZEP',
-  'HAG',
-  'ZEC',
-  'MAL',
-];
-
-interface BibleBook {
-  id: string;
-  name: string;
-  commonName: string;
-  numberOfChapters: number;
-  order: number;
-}
-
-interface ApiBibleTranslation {
-  id: string;
-  name?: string;
-  shortName?: string;
-  englishName?: string;
-  language?: string;
-  languageEnglishName?: string;
-}
-
-interface BibleTranslationOption {
-  id: string;
-  shortName: string;
-  label: string;
-  description: string;
-  languageCode: string;
-}
 
 interface Props {
   navigation?: any;
 }
 
-const FALLBACK_TRANSLATIONS: BibleTranslationOption[] = [
-  {
-    id: DEFAULT_TRANSLATION_ID,
-    shortName: 'BSB',
-    label: 'Berean Standard Bible',
-    description: 'English',
-    languageCode: 'en',
-  },
-  {
-    id: 'fra_lsg',
-    shortName: 'LSG',
-    label: 'Louis Segond 1910',
-    description: 'French',
-    languageCode: 'fr',
-  },
-];
-
-const normalizeValue = (value?: string | null): string => (value ?? '').trim().toLowerCase();
-
-const getFirstNonEmptyValue = (...values: (string | undefined)[]): string =>
-  values.find((value) => value && value.trim().length > 0)?.trim() ?? '';
-
-const getTranslationSearchText = (translation: ApiBibleTranslation): string =>
-  [
-    translation.id,
-    translation.name,
-    translation.shortName,
-    translation.englishName,
-    translation.language,
-    translation.languageEnglishName,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-const extractTranslations = (payload: any): ApiBibleTranslation[] => {
-  const translations: unknown[] = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.translations)
-      ? payload.translations
-      : Array.isArray(payload?.data)
-        ? payload.data
-        : Array.isArray(payload?.availableTranslations)
-          ? payload.availableTranslations
-          : [];
-
-  return translations.filter(
-    (translation): translation is ApiBibleTranslation =>
-      typeof translation === 'object' &&
-      translation !== null &&
-      'id' in translation &&
-      typeof translation.id === 'string' &&
-      translation.id.length > 0
-  );
-};
-
-const toTranslationOption = (
-  translation: ApiBibleTranslation,
-  fallback: Omit<BibleTranslationOption, 'id'>
-): BibleTranslationOption => ({
-  id: translation.id,
-  shortName: getFirstNonEmptyValue(translation.shortName, fallback.shortName),
-  label: getFirstNonEmptyValue(translation.name, translation.englishName, fallback.label),
-  description: getFirstNonEmptyValue(
-    translation.englishName,
-    translation.languageEnglishName,
-    translation.name,
-    fallback.description
-  ),
-  languageCode: normalizeValue(translation.language).split(/[-_]/)[0] || fallback.languageCode,
-});
-
-const dedupeTranslations = (
-  translations: (BibleTranslationOption | null | undefined)[]
-): BibleTranslationOption[] =>
-  translations
-    .filter((translation): translation is BibleTranslationOption => Boolean(translation))
-    .filter(
-      (translation, index, array) =>
-        array.findIndex((candidate) => candidate.id === translation.id) === index
-    );
-
-const buildTranslationOptions = (
-  translations: ApiBibleTranslation[]
-): BibleTranslationOption[] => {
-  const englishTranslation =
-    translations.find((translation) => {
-      const text = getTranslationSearchText(translation);
-      return (
-        normalizeValue(translation.id) === DEFAULT_TRANSLATION_ID ||
-        normalizeValue(translation.shortName) === 'bsb' ||
-        text.includes('berean standard bible')
-      );
-    }) ?? null;
-
-  const frenchTranslation =
-    translations.find((translation) => {
-      const text = getTranslationSearchText(translation);
-      const languageCode = normalizeValue(translation.language);
-      return (
-        normalizeValue(translation.id) === 'fra_lsg' ||
-        ((languageCode.startsWith('fr') || text.includes('french')) &&
-          (text.includes('louis segond') || normalizeValue(translation.shortName) === 'lsg'))
-      );
-    }) ?? null;
-
-  const germanTranslation =
-    translations.find((translation) => {
-      const text = getTranslationSearchText(translation);
-      const languageCode = normalizeValue(translation.language);
-      const isGermanLanguage = languageCode.startsWith('de') || text.includes('german');
-      return (
-        isGermanLanguage &&
-        (text.includes('luther') ||
-          text.includes('schlachter') ||
-          text.includes('elberfelder') ||
-          text.includes('hoffnung'))
-      );
-    }) ??
-    translations.find((translation) => {
-      const text = getTranslationSearchText(translation);
-      const languageCode = normalizeValue(translation.language);
-      return languageCode.startsWith('de') || text.includes('german');
-    }) ??
-    null;
-
-  return dedupeTranslations([
-    englishTranslation
-      ? toTranslationOption(englishTranslation, {
-          shortName: 'BSB',
-          label: 'Berean Standard Bible',
-          description: 'English',
-          languageCode: 'en',
-        })
-      : FALLBACK_TRANSLATIONS[0],
-    frenchTranslation
-      ? toTranslationOption(frenchTranslation, {
-          shortName: 'LSG',
-          label: 'Louis Segond 1910',
-          description: 'French',
-          languageCode: 'fr',
-        })
-      : FALLBACK_TRANSLATIONS[1],
-    germanTranslation
-      ? toTranslationOption(germanTranslation, {
-          shortName: getFirstNonEmptyValue(germanTranslation.shortName, 'DE'),
-          label: getFirstNonEmptyValue(
-            germanTranslation.name,
-            germanTranslation.englishName,
-            'German Bible'
-          ),
-          description: 'German',
-          languageCode: 'de',
-        })
-      : null,
-  ]);
-};
-
-const getPreferredTranslationId = (
-  currentLanguage: string,
-  translations: BibleTranslationOption[]
-): string => {
-  const languageCode = normalizeValue(currentLanguage).split(/[-_]/)[0];
-
-  if (languageCode === 'fr') {
-    return (
-      translations.find((translation) => translation.languageCode === 'fr')?.id ??
-      DEFAULT_TRANSLATION_ID
-    );
-  }
-
-  if (languageCode === 'de') {
-    return (
-      translations.find((translation) => translation.languageCode === 'de')?.id ??
-      translations.find((translation) => translation.languageCode === 'en')?.id ??
-      DEFAULT_TRANSLATION_ID
-    );
-  }
-
-  return (
-    translations.find(
-      (translation) =>
-        translation.id === DEFAULT_TRANSLATION_ID || normalizeValue(translation.shortName) === 'bsb'
-    )?.id ??
-    translations.find((translation) => translation.languageCode === 'en')?.id ??
-    translations[0]?.id ??
-    DEFAULT_TRANSLATION_ID
-  );
-};
-
 const BibleScreen = ({ navigation }: Props) => {
   const { currentLanguage } = useLanguage();
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [availableTranslations, setAvailableTranslations] =
-    useState<BibleTranslationOption[]>(FALLBACK_TRANSLATIONS);
+    useState<BibleTranslationOption[]>(BIBLE_TRANSLATION_OPTIONS);
   const [selectedTranslationId, setSelectedTranslationId] =
-    useState<string>(DEFAULT_TRANSLATION_ID);
+    useState<string>(DEFAULT_BIBLE_TRANSLATION_ID);
   const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
   const [chapterContent, setChapterContent] = useState<any>(null);
@@ -305,20 +56,18 @@ const BibleScreen = ({ navigation }: Props) => {
   const selectedTranslation =
     availableTranslations.find((translation) => translation.id === selectedTranslationId) ??
     availableTranslations[0] ??
-    FALLBACK_TRANSLATIONS[0];
+    BIBLE_TRANSLATION_OPTIONS[0];
 
-  const fetchChapter = useCallback(async (translationId: string, bookId: string, chapter: number) => {
+  const fetchChapter = useCallback(async (translationId: string, bookId: number, chapter: number) => {
     try {
       setLoadingChapter(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/${translationId}/${bookId}/${chapter}.json`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch chapter');
-      }
-
-      const data = await response.json();
+      const data = await fetchBibleChapter({
+        version: translationId,
+        bookId,
+        chapter,
+      });
       setChapterContent(data);
       setShowChapterDropdown(false);
     } catch (err: any) {
@@ -342,14 +91,7 @@ const BibleScreen = ({ navigation }: Props) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/${translationId}/books.json`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch books');
-      }
-
-      const data = await response.json();
-      const nextBooks: BibleBook[] = Array.isArray(data?.books) ? data.books : [];
+      const nextBooks = getBibleBooks(translationId);
 
       if (nextBooks.length === 0) {
         throw new Error('Invalid data format');
@@ -365,7 +107,7 @@ const BibleScreen = ({ navigation }: Props) => {
       }
 
       const matchingBook =
-        nextBooks.find((book) => book.id === preserveBook.id) ?? null;
+        nextBooks.find((book) => book.bookId === preserveBook.bookId) ?? null;
 
       if (!matchingBook) {
         setSelectedBook(null);
@@ -374,9 +116,10 @@ const BibleScreen = ({ navigation }: Props) => {
         return;
       }
 
+      const nextChapter = Math.min(preserveChapter, matchingBook.numberOfChapters);
       setSelectedBook(matchingBook);
-      setSelectedChapter(preserveChapter);
-      await fetchChapter(translationId, matchingBook.id, preserveChapter);
+      setSelectedChapter(nextChapter);
+      await fetchChapter(translationId, matchingBook.bookId, nextChapter);
     } catch (err: any) {
       console.error('Error fetching books:', err);
       setError(err.message || 'Failed to load Bible books');
@@ -387,21 +130,7 @@ const BibleScreen = ({ navigation }: Props) => {
 
   useEffect(() => {
     const initializeBible = async () => {
-      let nextTranslations = FALLBACK_TRANSLATIONS;
-
-      try {
-        const response = await fetch(`${API_BASE}/available_translations.json`);
-
-        if (response.ok) {
-          const data = await response.json();
-          const discoveredTranslations = buildTranslationOptions(extractTranslations(data));
-          if (discoveredTranslations.length > 0) {
-            nextTranslations = discoveredTranslations;
-          }
-        }
-      } catch (translationError) {
-        console.warn('Error fetching available Bible translations:', translationError);
-      }
+      const nextTranslations = BIBLE_TRANSLATION_OPTIONS;
 
       let savedTranslationId: string | null = null;
 
@@ -413,9 +142,9 @@ const BibleScreen = ({ navigation }: Props) => {
 
       const nextTranslationId =
         savedTranslationId &&
-        nextTranslations.some((translation) => translation.id === savedTranslationId)
+        isBibleTranslationSupported(savedTranslationId)
           ? savedTranslationId
-          : getPreferredTranslationId(currentLanguage, nextTranslations);
+          : getPreferredBibleTranslationId(currentLanguage);
 
       setAvailableTranslations(nextTranslations);
       setSelectedTranslationId(nextTranslationId);
@@ -425,8 +154,7 @@ const BibleScreen = ({ navigation }: Props) => {
     void initializeBible();
   }, [currentLanguage, fetchBooks]);
 
-  const getTestament = (bookId: string): 'old' | 'new' =>
-    oldTestamentIds.includes(bookId) ? 'old' : 'new';
+  const getTestament = (book: BibleBook): 'old' | 'new' => book.testament;
 
   const getFilteredBooks = (): BibleBook[] => {
     if (books.length === 0) {
@@ -436,9 +164,9 @@ const BibleScreen = ({ navigation }: Props) => {
     let filtered = [...books];
 
     if (activeTab === 'old') {
-      filtered = filtered.filter((book) => oldTestamentIds.includes(book.id));
+      filtered = filtered.filter((book) => book.testament === 'old');
     } else if (activeTab === 'new') {
-      filtered = filtered.filter((book) => !oldTestamentIds.includes(book.id));
+      filtered = filtered.filter((book) => book.testament === 'new');
     }
 
     if (searchQuery.trim()) {
@@ -480,13 +208,13 @@ const BibleScreen = ({ navigation }: Props) => {
     setSelectedBook(book);
     setSelectedChapter(1);
     setShowBookDropdown(false);
-    void fetchChapter(selectedTranslationId, book.id, 1);
+    void fetchChapter(selectedTranslationId, book.bookId, 1);
   };
 
   const handleChapterSelect = (chapter: number) => {
     setSelectedChapter(chapter);
     if (selectedBook) {
-      void fetchChapter(selectedTranslationId, selectedBook.id, chapter);
+      void fetchChapter(selectedTranslationId, selectedBook.bookId, chapter);
     }
   };
 
@@ -1342,7 +1070,7 @@ const BibleScreen = ({ navigation }: Props) => {
               {/* Books List */}
               <View style={{ paddingHorizontal: 20 }}>
                 {filteredBooks.map((book) => {
-                  const testament = getTestament(book.id);
+                  const testament = getTestament(book);
                   return (
                     <TouchableOpacity
                       key={book.id}
