@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type RootStackParamList = {
   Onboarding: undefined;
   Register: undefined;
@@ -7,7 +9,7 @@ export type RootStackParamList = {
   ResetPassword: { email: string };
   CompleteProfile: undefined;
   RegistrationSuccess: undefined;
-  Tabs: undefined;
+  Tabs: NavigatorScreenParams<TabParamList> | undefined;
   Notifications: undefined;
   NotificationSettings: undefined;
   ShopStack: undefined; // New entry for the Shop Navigator
@@ -18,6 +20,9 @@ export type RootStackParamList = {
   AboutMowdministries: undefined;
   Bible: undefined;
   BibleStories: undefined;
+  GospelMusic: undefined;
+  Sermons: undefined;
+  Testimonies: undefined;
   Community: undefined;
   CreateNewGroup: undefined;
   GroupChat: { groupId: string; groupName?: string; groupImage?: string };
@@ -34,7 +39,7 @@ export type ShopStackParamList = {
 
 export type TabParamList = {
   Home: undefined;
-  Event: undefined;
+  Event: { eventId?: string } | undefined;
   Media: undefined;
   PrayerWall: undefined;
   Profile: undefined;

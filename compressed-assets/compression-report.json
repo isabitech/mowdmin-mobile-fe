@@ -1,0 +1,97 @@
+{
+  "generatedAt": "2026-04-26T14:32:31.298Z",
+  "outputRoot": "compressed-assets",
+  "totalOriginalBytes": 38559862,
+  "totalCompressedBytes": 1352136,
+  "savedBytes": 37207726,
+  "files": [
+    {
+      "file": "src/assets/readbible.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\readbible.jpg",
+      "originalBytes": 8891589,
+      "compressedBytes": 98472,
+      "width": 6000,
+      "height": 4000
+    },
+    {
+      "file": "src/assets/images/onboarding/one.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\images\\onboarding\\one.jpg",
+      "originalBytes": 6277200,
+      "compressedBytes": 134526,
+      "width": 2736,
+      "height": 4096
+    },
+    {
+      "file": "src/assets/images/onboarding/two.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\images\\onboarding\\two.jpg",
+      "originalBytes": 8737821,
+      "compressedBytes": 63192,
+      "width": 4096,
+      "height": 2296
+    },
+    {
+      "file": "src/assets/images/onboarding/three.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\images\\onboarding\\three.jpg",
+      "originalBytes": 5015236,
+      "compressedBytes": 189380,
+      "width": 2731,
+      "height": 4096
+    },
+    {
+      "file": "src/assets/one.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\one.jpg",
+      "originalBytes": 6277200,
+      "compressedBytes": 134526,
+      "width": 2736,
+      "height": 4096
+    },
+    {
+      "file": "src/assets/images/complete-setup.png",
+      "outputFile": "compressed-assets\\src\\assets\\images\\complete-setup.png",
+      "originalBytes": 1482657,
+      "compressedBytes": 61890,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "file": "src/assets/images/events/baptism.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\images\\events\\baptism.jpg",
+      "originalBytes": 565489,
+      "compressedBytes": 107391,
+      "width": 1920,
+      "height": 1280
+    },
+    {
+      "file": "src/assets/images/events/sympossium.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\images\\events\\sympossium.jpg",
+      "originalBytes": 476308,
+      "compressedBytes": 129419,
+      "width": 1600,
+      "height": 1200
+    },
+    {
+      "file": "src/assets/images/events/events-placeholder.png",
+      "outputFile": "compressed-assets\\src\\assets\\images\\events\\events-placeholder.png",
+      "originalBytes": 366459,
+      "compressedBytes": 269689,
+      "width": 1264,
+      "height": 844
+    },
+    {
+      "file": "src/assets/images/events/crusade.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\images\\events\\crusade.jpg",
+      "originalBytes": 288554,
+      "compressedBytes": 78885,
+      "width": 1600,
+      "height": 933
+    },
+    {
+      "file": "src/assets/images/events/conference.jpg",
+      "outputFile": "compressed-assets\\src\\assets\\images\\events\\conference.jpg",
+      "originalBytes": 181349,
+      "compressedBytes": 84766,
+      "width": 1920,
+      "height": 1080
+    }
+  ]
+}

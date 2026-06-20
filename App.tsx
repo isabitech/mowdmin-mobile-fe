@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
@@ -10,10 +11,20 @@ import { NotificationProvider } from './src/contexts/NotificationContext';
 import Toast from 'react-native-toast-message';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { initI18n } from './src/i18tn/i18tn';
+import { navigationRef } from './src/navigation/navigationRef';
 import './global.css';
 
 // TODO: Replace with your actual Stripe publishable key
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_YOUR_KEY_HERE';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function App() {
   const [i18nInitialized, setI18nInitialized] = useState(false);
@@ -37,7 +48,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <AuthProvider>
             <LanguageProvider>
               <NotificationProvider>

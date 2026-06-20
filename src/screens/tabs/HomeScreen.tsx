@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import HomeHero from '../../components/HomeHero';
+import QuickActionCard from '../../components/home/QuickActionCard';
 import { profileAPI, Profile } from '../../services/profileApi';
 import { eventsAPI, Event as APIEvent } from '../../services/eventsApi';
 import { bibleVersesAPI } from '../../services/bibleVersesApi';
@@ -78,7 +79,7 @@ const TOUR_STEPS: TourStep[] = [
     key: 'quickActions',
     title: 'Quick Actions',
     description:
-      'These shortcuts take you straight to Shop, Donate, Bible Stories, and Community in one tap.',
+      'These shortcuts take you straight to giving, gospel music, testimonies, sermons, and other key areas in one tap.',
   },
   {
     key: 'bibleCard',
@@ -399,12 +400,7 @@ const onRefresh = useCallback(async () => {
   setRefreshing(false);
 }, [fetchProfile, fetchEvents, fetchVerse, fetchMedia]);
 
-  const handleQuickActionPress = useCallback((actionLabel: string, nav: string) => {
-    if (actionLabel === 'Donate') {
-      Alert.alert('Coming Soon', 'Donate is coming soon');
-      return;
-    }
-
+  const handleQuickActionPress = useCallback((nav: string) => {
     navigation?.navigate(nav);
   }, [navigation]);
 
@@ -439,12 +435,10 @@ const onRefresh = useCallback(async () => {
   }, [playingVideoId, player]);
 
   const handleFullscreen = useCallback((item: VideoItem) => {
-    // Navigate to a fullscreen video player screen
-    navigation?.navigate('FullscreenVideo', {
+    navigation?.navigate('VideoPlayer', {
       videoUrl: item.media_url,
       title: item.title,
       author: item.author || item.category,
-      isYouTube: isYouTubeUrl(item.media_url || '')
     });
   }, [navigation]);
 
@@ -486,6 +480,68 @@ const onRefresh = useCallback(async () => {
   };
   
   const videos: VideoItem[] = getVideosToShow();
+
+  const quickActionRows: Array<Array<{
+    label: string;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    colors: readonly [string, string];
+    nav: string;
+    fullWidth?: boolean;
+  }>> = [
+    [
+      {
+        label: 'Shop',
+        icon: 'bag-handle' as const,
+        colors: [PRIMARY, '#0A1045'] as const,
+        nav: 'ShopStack',
+        fullWidth: true,
+      },
+      // {
+      //   label: 'Donate',
+      //   icon: 'heart' as const,
+      //   colors: ['#F97316', '#EA580C'] as const,
+      //   nav: 'GivingHistory',
+      // },
+    ],
+    [
+      {
+        label: 'Gospel Music',
+        icon: 'musical-notes' as const,
+        colors: ['#D97706', '#B45309'] as const,
+        nav: 'GospelMusic',
+      },
+      {
+        label: 'Testimonies',
+        icon: 'sparkles' as const,
+        colors: ['#2563EB', '#1D4ED8'] as const,
+        nav: 'Testimonies',
+      },
+    ],
+    [
+      {
+        label: 'Sermons',
+        icon: 'mic' as const,
+        colors: ['#7C3AED', '#6D28D9'] as const,
+        nav: 'Sermons',
+        fullWidth: true,
+      },
+      // {
+      //   label: 'Bible Stories',
+      //   icon: 'book-outline' as const,
+      //   colors: ['#8B5CF6', '#7C3AED'] as const,
+      //   nav: 'BibleStories',
+      // },
+    ],
+    [
+      {
+        label: 'Community',
+        icon: 'people' as const,
+        colors: ['#10B981', '#059669'] as const,
+        nav: 'Community',
+        fullWidth: true,
+      },
+    ],
+  ];
 
   // ─── Sub-renders ─────────────────────────────────────────────────────────────
 
@@ -529,7 +585,7 @@ const onRefresh = useCallback(async () => {
                   zIndex: 1001,
                 }}
                 player={player}
-                fullscreenOptions={{ enabled: false }}
+                fullscreenOptions={{ enable: false }}
                 allowsPictureInPicture={false}
               />
             )}
@@ -866,70 +922,20 @@ const onRefresh = useCallback(async () => {
           <Text style={{ color: PRIMARY, fontSize: 18, fontWeight: '800', marginBottom: 14, letterSpacing: -0.3 }}>
             Quick Actions
           </Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {[
-              { label: 'Shop', icon: 'bag-handle' as const, colors: [PRIMARY, '#0A1045'] as const, nav: 'ShopStack' },
-              { label: 'Donate', icon: 'heart' as const, colors: ['#F97316', '#EA580C'] as const, nav: 'GivingHistory' },
-            ].map((action) => (
-              <TouchableOpacity
-                key={action.label}
-                style={{ flex: 1, borderRadius: 20, overflow: 'hidden', height: 90 }}
-                onPress={() => handleQuickActionPress(action.label, action.nav)}
-                activeOpacity={0.85}
-              >
-                <LinearGradient colors={[...action.colors]} style={{ flex: 1, padding: 16, justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>{action.label}</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Ionicons name={action.icon} size={20} color="rgba(255,255,255,0.3)" />
-                    <View
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 14,
-                        backgroundColor: 'rgba(255,255,255,0.15)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
-                    </View>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-            {[
-              { label: 'Bible Stories', icon: 'book-outline' as const, colors: ['#8B5CF6', '#7C3AED'] as const, nav: 'BibleStories' },
-              { label: 'Community', icon: 'people' as const, colors: ['#10B981', '#059669'] as const, nav: 'Community' },
-            ].map((action) => (
-              <TouchableOpacity
-                key={action.label}
-                style={{ flex: 1, borderRadius: 20, overflow: 'hidden', height: 90 }}
-                onPress={() => handleQuickActionPress(action.label, action.nav)}
-                activeOpacity={0.85}
-              >
-                <LinearGradient colors={[...action.colors]} style={{ flex: 1, padding: 16, justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>{action.label}</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Ionicons name={action.icon} size={20} color="rgba(255,255,255,0.3)" />
-                    <View
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 14,
-                        backgroundColor: 'rgba(255,255,255,0.15)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
-                    </View>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {quickActionRows.map((row, index) => (
+            <View key={`row-${index}`} style={{ flexDirection: 'row', gap: 10, marginTop: index === 0 ? 0 : 10 }}>
+              {row.map((action) => (
+                <QuickActionCard
+                  key={action.label}
+                  label={action.label}
+                  icon={action.icon}
+                  colors={action.colors}
+                  fullWidth={action.fullWidth}
+                  onPress={() => handleQuickActionPress(action.nav)}
+                />
+              ))}
+            </View>
+          ))}
         </View>
 
         {/* ── Read Bible Card ────────────────────────────────────────────── */}
