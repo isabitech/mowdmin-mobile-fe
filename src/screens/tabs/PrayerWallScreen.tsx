@@ -52,23 +52,23 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
 
   const loadAllData = async () => {
     setLoading(true);
-    
+
     try {
       console.log('=== LOADING ALL DATA ===');
-      
+
       // Load public prayers for church wall
       console.log('Fetching public prayers...');
       const publicPrayers = await prayerAPI.getAllPrayers();
       console.log('Public prayers count:', publicPrayers.length);
       console.log('First prayer sample:', JSON.stringify(publicPrayers[0], null, 2));
       setChurchPrayers(publicPrayers);
-      
+
       // Load user's personal prayer requests
       console.log('Fetching personal prayer requests...');
       const myPrayerRequests = await prayerAPI.getMyPrayerRequests();
       console.log('Personal prayer requests count:', myPrayerRequests.length);
       setPersonalPrayerRequests(myPrayerRequests);
-      
+
       console.log('=== DATA LOADING COMPLETED ===');
     } catch (error: any) {
       console.error('=== DATA LOADING ERROR ===');
@@ -150,7 +150,7 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
       Keyboard.dismiss();
       // Update comment count on the prayer card
       setChurchPrayers(prev => prev.map(p =>
-        p._id === commentsPrayerId
+        p?._id === commentsPrayerId
           ? { ...p, commentCount: (p.commentCount || 0) + 1 }
           : p
       ));
@@ -171,7 +171,7 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
             await prayerAPI.deleteComment(commentId);
             setComments(prev => prev.filter(c => c._id !== commentId));
             setChurchPrayers(prev => prev.map(p =>
-              p._id === commentsPrayerId
+              p?._id === commentsPrayerId
                 ? { ...p, commentCount: Math.max(0, (p.commentCount || 1) - 1) }
                 : p
             ));
@@ -279,9 +279,9 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
                             title: newTitle.trim(),
                             description: newDescription.trim(),
                           });
-                          
+
                           setPersonalPrayerRequests(
-                            personalPrayerRequests.map(req => 
+                            personalPrayerRequests.map(req =>
                               req._id === requestId ? updated : req
                             )
                           );
@@ -321,24 +321,24 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
   };
 
   const renderChurchPrayerCard = (prayer: Prayer) => (
-    <View 
-      key={prayer._id} 
+    <View
+      key={prayer._id}
       className="bg-gray-50 rounded-3xl mb-4 overflow-hidden border border-gray-100"
     >
       <View className="p-4 pb-0">
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center flex-1">
-            <View 
+            <View
               className="w-12 h-12 rounded-full items-center justify-center"
               style={{ backgroundColor: ACCENT }}
             >
-              <MaterialCommunityIcons 
-                name="account-circle" 
-                size={24} 
-                color="#FFFFFF" 
+              <MaterialCommunityIcons
+                name="account-circle"
+                size={24}
+                color="#FFFFFF"
               />
             </View>
-            
+
             <View className="ml-3 flex-1">
               <Text className="font-bold text-base" style={{ color: PRIMARY }}>
                 {prayer.author?.name || 'Anonymous'}
@@ -353,7 +353,7 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
         <Text className="font-bold text-lg mt-4" style={{ color: PRIMARY }}>
           {prayer.title}
         </Text>
-        
+
         <Text className="text-gray-600 text-sm mt-2 leading-5">
           {prayer.description}
         </Text>
@@ -378,26 +378,26 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
       {/* Action buttons */}
       <View className="flex-row items-center p-4 pt-2 gap-2">
         <TouchableOpacity
-          onPress={() => handlePrayToggle(prayer._id)}
+          onPress={() => handlePrayToggle(prayer?._id)}
           className="flex-row items-center px-4 py-2.5 rounded-full"
           style={{ backgroundColor: prayer.isLiked ? '#FEE2E2' : '#FFFFFF', borderWidth: 1, borderColor: prayer.isLiked ? '#FECACA' : '#E5E7EB' }}
           activeOpacity={0.7}
         >
           <Ionicons
-            name={prayer.isLiked ? 'heart' : 'heart-outline'}
+            name={prayer?.isLiked ? 'heart' : 'heart-outline'}
             size={16}
             color={prayer.isLiked ? '#EF4444' : '#6B7280'}
           />
           <Text
             className="text-sm font-semibold ml-1.5"
-            style={{ color: prayer.isLiked ? '#EF4444' : '#374151' }}
+            style={{ color: prayer?.isLiked ? '#EF4444' : '#374151' }}
           >
-            {prayer.isLiked ? 'Prayed' : 'I Prayed'}
+            {prayer?.isLiked ? 'Prayed' : 'I Prayed'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => handleOpenComments(prayer._id)}
+          onPress={() => handleOpenComments(prayer?._id)}
           className="flex-row items-center px-4 py-2.5 rounded-full bg-white"
           style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
           activeOpacity={0.7}
@@ -412,21 +412,21 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
   );
 
   const renderPersonalPrayerRequestCard = (request: PrayerRequest) => (
-    <View 
-      key={request._id} 
+    <View
+      key={request?._id}
       className="bg-gray-50 rounded-3xl mb-4 overflow-hidden border border-gray-100"
       style={{ borderLeftWidth: 4, borderLeftColor: ACCENT }}
     >
       <View className="p-4 pb-0">
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center flex-1">
-            <View 
+            <View
               className="w-10 h-10 rounded-full items-center justify-center"
               style={{ backgroundColor: ACCENT }}
             >
               <Ionicons name="lock-closed" size={18} color="#FFFFFF" />
             </View>
-            
+
             <View className="ml-3 flex-1">
               <View className="flex-row items-center">
                 <Text className="font-bold text-sm" style={{ color: PRIMARY }}>
@@ -443,17 +443,17 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
               </Text>
             </View>
           </View>
-          
+
           <View className="flex-row items-center">
-            <TouchableOpacity 
-              onPress={() => handleEditPrayerRequest(request._id, request.title, request.description)}
+            <TouchableOpacity
+              onPress={() => handleEditPrayerRequest(request?._id, request?.title, request?.description)}
               className="w-9 h-9 rounded-full bg-blue-100 items-center justify-center mr-2"
             >
               <Feather name="edit-3" size={16} color={ACCENT} />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              onPress={() => handleDeletePrayerRequest(request._id)}
+
+            <TouchableOpacity
+              onPress={() => handleDeletePrayerRequest(request?._id)}
               className="w-9 h-9 rounded-full bg-red-100 items-center justify-center"
             >
               <Ionicons name="trash-outline" size={18} color="#EF4444" />
@@ -464,7 +464,7 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
         <Text className="font-bold text-lg mt-4" style={{ color: PRIMARY }}>
           {request.title}
         </Text>
-        
+
         <Text className="text-gray-600 text-sm mt-2 mb-4 leading-5">
           {request.description}
         </Text>
@@ -476,7 +476,7 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
     <View>
       <View className="bg-white rounded-3xl mb-6 p-5 border border-gray-100 shadow-sm">
         <View className="flex-row items-center mb-4">
-          <View 
+          <View
             className="w-10 h-10 rounded-full items-center justify-center"
             style={{ backgroundColor: PRIMARY }}
           >
@@ -518,13 +518,13 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleSubmitPrayerRequest}
           disabled={!prayerTitle.trim() || !prayerContent.trim() || submitting}
           className="rounded-xl py-4 flex-row items-center justify-center"
           style={{
-            backgroundColor: (!prayerTitle.trim() || !prayerContent.trim() || submitting) 
-              ? '#D1D5DB' 
+            backgroundColor: (!prayerTitle.trim() || !prayerContent.trim() || submitting)
+              ? '#D1D5DB'
               : PRIMARY
           }}
         >
@@ -582,10 +582,10 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100">
         <View className="flex-row items-center">
-          <View 
+          <View
             className="w-10 h-10 rounded-full items-center justify-center"
             style={{ backgroundColor: PRIMARY }}
           >
@@ -596,7 +596,7 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
           </Text>
         </View>
         <View className="flex-row items-center">
-          <NotificationIconWithBadge 
+          <NotificationIconWithBadge
             onPress={() => navigation?.navigate('Notifications')}
             color={PRIMARY}
             size={20}
@@ -605,36 +605,36 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
       </View>
 
       <View className="flex-row mx-5 mt-4 bg-gray-100 rounded-2xl p-1.5">
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => setActiveTab('church')}
           className="flex-1 py-3 rounded-xl items-center flex-row justify-center"
           style={{ backgroundColor: activeTab === 'church' ? '#FFFFFF' : 'transparent' }}
         >
-          <MaterialCommunityIcons 
-            name="church" 
-            size={18} 
-            color={activeTab === 'church' ? PRIMARY : '#9CA3AF'} 
+          <MaterialCommunityIcons
+            name="church"
+            size={18}
+            color={activeTab === 'church' ? PRIMARY : '#9CA3AF'}
             style={{ marginRight: 6 }}
           />
-          <Text 
+          <Text
             className="font-semibold"
             style={{ color: activeTab === 'church' ? PRIMARY : '#9CA3AF' }}
           >
             Church Prayers
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => setActiveTab('personal')}
           className="flex-1 py-3 rounded-xl items-center flex-row justify-center"
           style={{ backgroundColor: activeTab === 'personal' ? '#FFFFFF' : 'transparent' }}
         >
-          <Ionicons 
-            name="lock-closed" 
-            size={16} 
-            color={activeTab === 'personal' ? PRIMARY : '#9CA3AF'} 
+          <Ionicons
+            name="lock-closed"
+            size={16}
+            color={activeTab === 'personal' ? PRIMARY : '#9CA3AF'}
             style={{ marginRight: 6 }}
           />
-          <Text 
+          <Text
             className="font-semibold"
             style={{ color: activeTab === 'personal' ? PRIMARY : '#9CA3AF' }}
           >
@@ -665,11 +665,11 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
         </View>
       )}
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <ScrollView 
+        <ScrollView
           className="flex-1 px-5 pt-5"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
@@ -683,26 +683,26 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
               const q = prayerSearchQuery.toLowerCase().trim();
               const filtered = q
                 ? churchPrayers.filter(p =>
-                    p.title.toLowerCase().includes(q) ||
-                    p.description.toLowerCase().includes(q) ||
-                    (p.author?.name || '').toLowerCase().includes(q)
-                  )
+                  p.title.toLowerCase().includes(q) ||
+                  p.description.toLowerCase().includes(q) ||
+                  (p.author?.name || '').toLowerCase().includes(q)
+                )
                 : churchPrayers;
               return filtered.length > 0 ? (
-              filtered.map((prayer) => renderChurchPrayerCard(prayer))
-            ) : (
-              <View className="bg-gray-50 rounded-3xl p-8 items-center border border-gray-100">
-                <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center mb-4">
-                  <MaterialCommunityIcons name="hands-pray" size={32} color="#9CA3AF" />
+                filtered.map((prayer) => renderChurchPrayerCard(prayer))
+              ) : (
+                <View className="bg-gray-50 rounded-3xl p-8 items-center border border-gray-100">
+                  <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center mb-4">
+                    <MaterialCommunityIcons name="hands-pray" size={32} color="#9CA3AF" />
+                  </View>
+                  <Text className="font-semibold text-base mb-1" style={{ color: PRIMARY }}>
+                    No prayers yet
+                  </Text>
+                  <Text className="text-gray-400 text-sm text-center">
+                    {q ? 'No prayers match your search' : 'Be the first to share a prayer with the community'}
+                  </Text>
                 </View>
-                <Text className="font-semibold text-base mb-1" style={{ color: PRIMARY }}>
-                  No prayers yet
-                </Text>
-                <Text className="text-gray-400 text-sm text-center">
-                  {q ? 'No prayers match your search' : 'Be the first to share a prayer with the community'}
-                </Text>
-              </View>
-            );
+              );
             })()
           ) : (
             renderPersonalTab()
@@ -768,8 +768,15 @@ export default function CommunityPrayerWallScreen({ navigation }: Props) {
               contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 12 }}
               renderItem={({ item }) => {
                 // userId can be a string or populated object { _id, name, email }
-                const userIdStr = typeof item.userId === 'object' ? item.userId._id : item.userId;
-                const populatedName = typeof item.userId === 'object' ? item.userId.name : undefined;
+                // const userIdStr = typeof item.userId === 'object' ? item.userId._id : item.userId;
+                // const populatedName = typeof item.userId === 'object' ? item.userId.name : undefined;
+                const userIdStr = item.userId && typeof item.userId === 'object'
+                  ? item.userId._id
+                  : (typeof item.userId === 'string' ? item.userId : undefined); 
+
+                const populatedName = item.userId && typeof item.userId === 'object'
+                  ? item.userId.name
+                  : undefined;
                 const isOwn = userIdStr === currentUserId;
                 const displayName = item.author?.name || populatedName || (isOwn ? currentUserName : 'Anonymous');
                 return (
